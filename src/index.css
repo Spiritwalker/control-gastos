@@ -1,0 +1,398 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  background-color: #fafaf9;
+  color: #1f2937;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.app-shell {
+  width: 100%;
+  max-width: 1600px;
+  background: #ffffff;
+  border-radius: 1rem;
+  padding: 2.5rem 3rem 3rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2.25rem;
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #111827;
+}
+
+.app-subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.add-category {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.add-category-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-category-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 2rem;
+}
+
+@media (max-width: 800px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card {
+  background: #fafaf9;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.card-subtitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.totals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.4rem;
+}
+
+@media (max-width: 600px) {
+  .totals-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pill {
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.pill-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.pill-value {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #1f2937;
+}
+
+.pill-total {
+  background: #111827;
+  border-color: #111827;
+}
+
+.pill-total .pill-label {
+  color: #9ca3af;
+}
+
+.pill-total .pill-value {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.pill-positive .pill-value {
+  color: #15803d;
+}
+
+.pill-negative .pill-value {
+  color: #b91c1c;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.field-label {
+  font-size: 0.72rem;
+  color: #374151;
+}
+
+.field-hint {
+  font-size: 0.65rem;
+  color: #9ca3af;
+}
+
+.input,
+.select,
+.textarea {
+  border-radius: 0.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 0.4rem 0.5rem;
+  font-size: 0.8rem;
+  background: #ffffff;
+  color: #1f2937;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: #6b7280;
+  box-shadow: 0 0 0 1px #9ca3af;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #9ca3af;
+}
+
+.input-error {
+  border-color: #b91c1c;
+}
+
+.error-text {
+  margin-top: 0.15rem;
+  font-size: 0.65rem;
+  color: #b91c1c;
+}
+
+.textarea {
+  min-height: 2.4rem;
+  resize: vertical;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 0.6rem;
+  gap: 0.6rem;
+}
+
+.button {
+  border-radius: 0.4rem;
+  padding: 0.45rem 1rem;
+  border: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #111827;
+  color: #ffffff;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.button:hover {
+  background: #374151;
+}
+
+.button:active {
+  opacity: 0.9;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button-secondary {
+  background: transparent;
+  color: #374151;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-size: 0.78rem;
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.table-wrapper {
+  margin-top: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  max-height: 420px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.table-scroll {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fafaf9;
+}
+
+th,
+td {
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #6b7280;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 0;
+  background: inherit;
+}
+
+tbody tr:nth-child(even) {
+  background: #fafaf9;
+}
+
+tbody tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+tbody tr:hover {
+  background: #f3f4f6;
+}
+
+.cell-right {
+  text-align: right;
+}
+
+.amount-positive {
+  color: #15803d;
+}
+
+.amount-negative {
+  color: #b91c1c;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.muted {
+  color: #9ca3af;
+}
+
+.table-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0.45rem 0.65rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.table-footer strong {
+  font-weight: 600;
+  color: #1f2937;
+}
+
