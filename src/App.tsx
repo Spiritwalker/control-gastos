@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DEFAULT_PLACES = ["Caja Seguridad", "Efectivo", "Deel"] as const;
 
@@ -54,6 +54,10 @@ export function App() {
     comment: "",
   });
   const [amountError, setAmountError] = useState<string | null>(null);
+  const [ahorrosMamaPapa, setAhorrosMamaPapa] = useState(23000);
+  const [isEditingAhorros, setIsEditingAhorros] = useState(false);
+  const [tempAhorros, setTempAhorros] = useState("23000");
+  const [confirmAhorros, setConfirmAhorros] = useState<{ newValue: number } | null>(null);
 
   const addCategory = () => {
     const name = newCategoryName.trim();
@@ -81,6 +85,8 @@ export function App() {
     () => entries.reduce((sum, e) => sum + e.amount, 0),
     [entries],
   );
+
+  const adeudado = ahorrosMamaPapa - grandTotal;
 
   const handleChange =
     (field: keyof FormState) =>
@@ -124,8 +130,86 @@ export function App() {
     resetForm();
   };
 
+  const handleDelete = (id: number) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  const startEditAhorros = () => {
+    setTempAhorros(String(ahorrosMamaPapa));
+    setIsEditingAhorros(true);
+  };
+
+  const cancelEditAhorros = () => {
+    setIsEditingAhorros(false);
+  };
+
+  const saveEditAhorros = () => {
+    const parsed = Number(tempAhorros.replace(/\s/g, "").replace(",", "."));
+    if (Number.isNaN(parsed) || parsed < 0) return;
+    const newValue = parsed;
+    if (newValue === ahorrosMamaPapa) {
+      setIsEditingAhorros(false);
+      return;
+    }
+    setConfirmAhorros({ newValue });
+  };
+
+  const confirmAhorrosOk = () => {
+    if (confirmAhorros) {
+      setAhorrosMamaPapa(confirmAhorros.newValue);
+      setIsEditingAhorros(false);
+      setConfirmAhorros(null);
+    }
+  };
+
+  const confirmAhorrosCancel = () => {
+    setConfirmAhorros(null);
+  };
+
+  useEffect(() => {
+    if (!confirmAhorros) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") confirmAhorrosCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmAhorros]);
+
   return (
     <div className="app-shell">
+      {confirmAhorros && (
+        <div
+          className="modal-overlay"
+          onClick={confirmAhorrosCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 id="modal-title" className="modal-title">
+              Cambiar Ahorros Mama y Papa
+            </h2>
+            <p className="modal-body">
+              ¿Confirmar el cambio de{" "}
+              <strong>{formatCurrency(ahorrosMamaPapa)}</strong> a{" "}
+              <strong>{formatCurrency(confirmAhorros.newValue)}</strong>?
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={confirmAhorrosCancel}
+              >
+                Cancelar
+              </button>
+              <button type="button" className="button" onClick={confirmAhorrosOk}>
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="app-header">
         <div>
           <div className="app-title">Control Gastos</div>
@@ -289,6 +373,54 @@ export function App() {
               </div>
             </div>
           </div>
+
+          <div className="ahorros-mama-papa">
+            <div className="ahorros-row">
+              <label className="pill-label">Ahorros Mama y Papa</label>
+              {isEditingAhorros ? (
+                <div className="ahorros-edit">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="input input-ahorros"
+                    value={tempAhorros}
+                    onChange={(e) => setTempAhorros(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="button"
+                    onClick={saveEditAhorros}
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={cancelEditAhorros}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <div className="ahorros-display">
+                  <span className="ahorros-value">{formatCurrency(ahorrosMamaPapa)}</span>
+                  <button
+                    type="button"
+                    className="button button-secondary btn-edit-ahorros"
+                    onClick={startEditAhorros}
+                  >
+                    Modificar
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className={`pill pill-adeudado ${adeudado > 0 ? "pill-negative" : "pill-positive"}`}>
+              <div className="pill-label">{adeudado > 0 ? "Faltando" : "Disponible"}</div>
+              <div className="pill-value">
+                {adeudado > 0 ? formatCurrency(adeudado) : formatCurrency(-adeudado)}
+              </div>
+            </div>
+          </div>
         </section>
       </div>
 
@@ -312,6 +444,7 @@ export function App() {
                   <th>Lugar</th>
                   <th className="cell-right">Movimiento</th>
                   <th>Comentario</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -331,6 +464,16 @@ export function App() {
                       </td>
                       <td className={entry.comment ? "" : "muted"}>
                         {entry.comment || "—"}
+                      </td>
+                      <td className="cell-actions">
+                        <button
+                          type="button"
+                          className="btn-delete"
+                          onClick={() => handleDelete(entry.id)}
+                          title="Eliminar movimiento"
+                        >
+                          Eliminar
+                        </button>
                       </td>
                     </tr>
                   );

@@ -160,6 +160,63 @@ body {
   color: #ffffff;
 }
 
+.ahorros-mama-papa {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.ahorros-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ahorros-row .pill-label {
+  margin: 0;
+}
+
+.ahorros-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ahorros-value {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: #1f2937;
+}
+
+.btn-edit-ahorros {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.72rem;
+}
+
+.ahorros-edit {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.ahorros-edit .input-ahorros {
+  width: 5.5rem;
+}
+
+.input-ahorros {
+  width: 6rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-adeudado .pill-value {
+  font-weight: 500;
+}
+
 .pill-positive .pill-value {
   color: #15803d;
 }
@@ -381,6 +438,28 @@ tbody tr:hover {
   color: #9ca3af;
 }
 
+.cell-actions {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.btn-delete {
+  background: none;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.7rem;
+  color: #b91c1c;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.btn-delete:hover {
+  background: rgba(185, 28, 28, 0.1);
+  color: #991b1b;
+}
+
 .table-footer {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding: 0.45rem 0.65rem;
@@ -394,5 +473,75 @@ tbody tr:hover {
 .table-footer strong {
   font-weight: 600;
   color: #1f2937;
+}
+
+/* Modal de confirmación */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: modalFadeIn 0.2s ease;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.5rem 1.75rem;
+  max-width: 22rem;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  animation: modalSlideIn 0.25s ease;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+  letter-spacing: 0.01em;
+}
+
+.modal-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.modal-body strong {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
