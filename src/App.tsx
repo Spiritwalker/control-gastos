@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./supabaseClient";
 
 const DEFAULT_PLACES = ["Caja Seguridad", "Efectivo", "Deel"] as const;
 
@@ -58,18 +59,63 @@ export function App() {
   const [isEditingAhorros, setIsEditingAhorros] = useState(false);
   const [tempAhorros, setTempAhorros] = useState("23000");
   const [confirmAhorros, setConfirmAhorros] = useState<{ newValue: number } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Entry | null>(null);
+
+  // Cargar datos iniciales desde Supabase
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [{ data: movements }, { data: placesData }, { data: settingsData }] =
+          await Promise.all([
+            supabase
+              .from("movements")
+              .select("id, date, place, amount, comment")
+              .order("date", { ascending: false })
+              .order("id", { ascending: false }),
+            supabase.from("places").select("name").order("name", { ascending: true }),
+            supabase.from("settings").select("id, ahorros_mama_papa").eq("id", 1).maybeSingle(),
+          ]);
+
+        if (movements) {
+          setEntries(
+            movements.map((m) => ({
+              id: m.id as number,
+              date: m.date as string,
+              place: m.place as string,
+              amount: Number(m.amount),
+              comment: (m.comment as string | null) ?? "",
+            })),
+          );
+        }
+
+        if (placesData && Array.isArray(placesData)) {
+          const fromDb = placesData.map((p: { name: string }) => p.name);
+          const merged = Array.from(new Set([...DEFAULT_PLACES, ...fromDb]));
+          setPlaces(merged);
+        }
+
+        if (settingsData && typeof settingsData.ahorros_mama_papa !== "undefined") {
+          const val = Number(settingsData.ahorros_mama_papa);
+          if (!Number.isNaN(val) && val >= 0) {
+            setAhorrosMamaPapa(val);
+            setTempAhorros(String(val));
+          }
+        }
+      } catch {
+        // si falla, la app sigue vacía
+      }
+    };
+
+    void load();
+  }, []);
 
   const addCategory = () => {
     const name = newCategoryName.trim();
     if (!name || places.includes(name)) return;
     setPlaces((prev) => [...prev, name]);
     setNewCategoryName("");
+    void supabase.from("places").insert({ name }).select("name").single();
   };
-
-  const nextId = useMemo(
-    () => (entries.length ? Math.max(...entries.map((e) => e.id)) + 1 : 1),
-    [entries],
-  );
 
   const totalsByPlace = useMemo(() => {
     const totals: Record<string, number> = {};
@@ -108,7 +154,7 @@ export function App() {
     setAmountError(null);
   };
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const raw = form.amount.replace(/\s/g, "").replace(",", ".");
     const parsed = Number(raw);
@@ -118,12 +164,31 @@ export function App() {
       return;
     }
 
-    const newEntry: Entry = {
-      id: nextId,
-      date: form.date || todayIso(),
+    const date = form.date || todayIso();
+    const payload = {
+      date,
       place: form.place,
       amount: parsed,
-      comment: form.comment.trim(),
+      comment: form.comment.trim() || null,
+    };
+
+    const { data, error } = await supabase
+      .from("movements")
+      .insert(payload)
+      .select("id, date, place, amount, comment")
+      .single();
+
+    if (error || !data) {
+      // si falla, no cambiamos el estado
+      return;
+    }
+
+    const newEntry: Entry = {
+      id: data.id as number,
+      date: data.date as string,
+      place: data.place as string,
+      amount: Number(data.amount),
+      comment: (data.comment as string | null) ?? "",
     };
 
     setEntries((prev) => [newEntry, ...prev]);
@@ -131,7 +196,9 @@ export function App() {
   };
 
   const handleDelete = (id: number) => {
-    setEntries((prev) => prev.filter((e) => e.id !== id));
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) return;
+    setConfirmDelete(entry);
   };
 
   const startEditAhorros = () => {
@@ -156,7 +223,11 @@ export function App() {
 
   const confirmAhorrosOk = () => {
     if (confirmAhorros) {
-      setAhorrosMamaPapa(confirmAhorros.newValue);
+      const next = confirmAhorros.newValue;
+      void supabase
+        .from("settings")
+        .upsert({ id: 1, ahorros_mama_papa: next }, { onConflict: "id" });
+      setAhorrosMamaPapa(next);
       setIsEditingAhorros(false);
       setConfirmAhorros(null);
     }
@@ -166,14 +237,30 @@ export function App() {
     setConfirmAhorros(null);
   };
 
+  const confirmDeleteOk = () => {
+    if (confirmDelete) {
+      const id = confirmDelete.id;
+      void supabase.from("movements").delete().eq("id", id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+      setConfirmDelete(null);
+    }
+  };
+
+  const confirmDeleteCancel = () => {
+    setConfirmDelete(null);
+  };
+
   useEffect(() => {
-    if (!confirmAhorros) return;
+    if (!confirmAhorros && !confirmDelete) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") confirmAhorrosCancel();
+      if (e.key === "Escape") {
+        confirmAhorrosCancel();
+        confirmDeleteCancel();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [confirmAhorros]);
+  }, [confirmAhorros, confirmDelete]);
 
   return (
     <div className="app-shell">
@@ -218,6 +305,44 @@ export function App() {
           </div>
         </div>
       </header>
+
+      {confirmDelete && (
+        <div
+          className="modal-overlay"
+          onClick={confirmDeleteCancel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-delete-title"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 id="modal-delete-title" className="modal-title">
+              Eliminar movimiento
+            </h2>
+            {confirmDelete && (
+              <p className="modal-body">
+                ¿Seguro que quieres eliminar este movimiento?
+                <br />
+                <strong>
+                  {formatDisplayDate(confirmDelete.date)} · {confirmDelete.place} ·{" "}
+                  {formatCurrency(confirmDelete.amount)}
+                </strong>
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={confirmDeleteCancel}
+              >
+                Cancelar
+              </button>
+              <button type="button" className="button" onClick={confirmDeleteOk}>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="layout">
         <section className="card">
