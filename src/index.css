@@ -4,7 +4,7 @@
     "Segoe UI", sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  background-color: #fafaf9;
+  background-color: #ffffff;
   color: #1f2937;
 }
 
@@ -21,41 +21,406 @@ body {
 
 #root {
   min-height: 100vh;
-  display: flex;
-  align-items: stretch;
-  justify-content: center;
-  padding: 1.5rem 1rem;
 }
 
-.app-shell {
-  width: 100%;
-  max-width: 1600px;
+.app-shell-with-sidebar {
+  display: flex;
+  min-height: 100vh;
   background: #ffffff;
-  border-radius: 1rem;
-  padding: 2.5rem 3rem 3rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.app-header {
+.app-shell-with-sidebar .main-content {
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+.sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  padding: 1rem 0;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  margin-bottom: 2.25rem;
+  flex-direction: column;
 }
 
-.app-title {
-  font-size: 1.25rem;
+.sidebar .sidebar-brand {
+  font-size: 0.95rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  color: #111827;
+  padding: 0 1rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.sidebar-nav-item-active .sidebar-nav-icon {
   color: #111827;
 }
 
-.app-subtitle {
-  margin-top: 0.2rem;
+.sidebar-nav {
+  flex: 1;
+  padding: 0.75rem 0;
+}
+
+.sidebar-nav-group {
+  margin-bottom: 0.75rem;
+}
+
+.sidebar-nav-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  padding: 0 1rem 0.25rem;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.35rem 1rem;
+  font-size: 0.8125rem;
+  color: #374151;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.sidebar-nav-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.sidebar-nav-item-active {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.sidebar-bottom {
+  padding: 0.75rem 0 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 1.25rem 1.5rem 2rem;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.main-header {
+  margin-bottom: 1.25rem;
+}
+
+.breadcrumb {
   font-size: 0.8rem;
   color: #6b7280;
+  margin-bottom: 0.5rem;
+}
+
+.reference-bar-compact {
+  margin-top: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.dashboard-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr);
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  align-items: stretch;
+}
+
+@media (max-width: 900px) {
+  .dashboard-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.panel {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+/* Misma altura en ambas columnas y botones alineados abajo */
+.panel-accounts,
+.panel-transactions {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-accounts-content {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-accounts .panel-actions {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.panel-transactions .tx-list-dashboard-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.panel-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.panel-total {
+  font-size: 1.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #111827;
+  margin: 0.5rem 0 0;
+}
+
+.panel-sub {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+.panel-sub-right {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.accounts-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+
+.accounts-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+.account-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 0.375rem;
+}
+
+.account-icon svg {
+  color: #6b7280;
+}
+
+.account-icon-caja svg {
+  color: #059669;
+}
+
+.account-icon-efectivo svg {
+  color: #0d9488;
+}
+
+.account-icon-deel.deel-logo {
+  background: #e9e0f5;
+  color: #1f2937;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.account-icon-default svg {
+  color: #9ca3af;
+}
+
+.accounts-list-name {
+  color: #374151;
+  flex: 1;
+  min-width: 0;
+}
+
+.accounts-list-balance {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.panel-actions {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.panel-actions .button,
+.panel-transactions-footer .button-ver-todas {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.875rem;
+  background: #111827;
+  color: #fff;
+  border: none;
+  justify-content: center;
+  text-align: center;
+}
+
+.panel-actions .button:hover,
+.panel-transactions-footer .button-ver-todas:hover {
+  background: #374151;
+}
+
+.add-category-inline {
+  margin-top: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.add-category-inline .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ahorros-mama-papa-inline {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ahorros-mama-papa-inline .pill-label {
+  margin: 0;
+}
+
+.panel-transactions-footer {
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+
+.tx-list-dashboard-wrap {
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 0.25rem;
+}
+
+.tx-list-plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tx-list-plain-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  font-size: 0.85rem;
+}
+
+.tx-list-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.tx-list-icon-in {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.tx-list-icon-out {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tx-list-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tx-list-desc {
+  color: #111827;
+}
+
+.tx-list-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.tx-list-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.tx-list-amount-in {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: #15803d;
+}
+
+.tx-list-amount-out {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: #b91c1c;
+}
+
+.btn-delete-inline {
+  background: none;
+  border: none;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.btn-delete-inline:hover {
+  color: #b91c1c;
+}
+
+.panel-upcoming {
+  margin-top: 0;
+}
+
+.panel-upcoming .panel-sub {
+  margin-bottom: 0;
 }
 
 .add-category {
@@ -77,21 +442,22 @@ body {
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr);
   gap: 2rem;
+  margin-top: 1.75rem;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .card {
-  background: #fafaf9;
+  background: #ffffff;
   border-radius: 0.75rem;
   padding: 1.25rem 1.5rem 1.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
 }
 
 .card-header {
@@ -110,6 +476,165 @@ body {
 .card-subtitle {
   font-size: 0.75rem;
   color: #6b7280;
+}
+
+/* Reference bar (Mama y Papa) */
+.reference-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+  margin-top: 0.75rem;
+  border-radius: 0.75rem;
+}
+
+/* Saldo a favor: tono verde suave */
+.reference-bar--available {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.reference-bar--available .reference-main,
+.reference-bar--available .reference-amount {
+  color: #065f46;
+}
+
+.reference-bar--available .reference-right {
+  color: #047857;
+  font-weight: 600;
+}
+
+/* Deuda (faltando): tono rojo/coral suave */
+.reference-bar--owing {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.reference-bar--owing .reference-main,
+.reference-bar--owing .reference-amount {
+  color: #991b1b;
+}
+
+.reference-bar--owing .reference-right {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.reference-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+}
+
+.reference-label {
+  color: #6b7280;
+}
+
+.reference-main {
+  font-weight: 600;
+}
+
+.reference-amount {
+  font-weight: 500;
+}
+
+.reference-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+}
+
+.reference-arrow {
+  font-size: 0.8rem;
+}
+
+.reference-text {
+  white-space: nowrap;
+}
+
+/* Grand total + sources */
+.card-grand-total {
+  padding: 1.2rem 1.4rem;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #eef2ff;
+}
+
+.grand-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.grand-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.grand-value {
+  font-size: 2rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.grand-sub {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
+.card-sources {
+  display: flex;
+  flex-direction: column;
+}
+
+.sources-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .sources-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.source-card {
+  border-radius: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.source-card-1 {
+  background: #e0e7ff;
+}
+
+.source-card-2 {
+  background: #cffafe;
+}
+
+.source-card-3 {
+  background: #fef3c7;
+}
+
+.source-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.source-value {
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .totals-grid {
@@ -543,5 +1068,219 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* Modal Todas las transacciones */
+.modal-all-transactions {
+  max-width: 520px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.5rem;
+}
+
+.modal-all-tx-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.modal-all-tx-header .modal-title {
+  margin: 0;
+}
+
+.modal-all-tx-sub {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem;
+}
+
+.tx-list-all-wrap {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  margin: 0 -0.25rem 0 0;
+  padding-right: 0.25rem;
+}
+
+.tx-list-all-wrap .tx-list-plain-item {
+  padding: 0.5rem 0;
+}
+
+/* Botón Nueva transacción en header */
+.btn-new-tx {
+  flex-shrink: 0;
+}
+
+/* Modal Nueva transacción (estilo v0) */
+.modal-transaction {
+  max-width: 26rem;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal-transaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem 1.75rem 0;
+  margin-bottom: 1rem;
+}
+
+.modal-transaction-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-transaction-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.modal-close-btn {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #111827;
+}
+
+.modal-transaction form {
+  padding: 0 1.75rem 1.75rem;
+}
+
+.tx-type-group {
+  margin-bottom: 1.1rem;
+}
+
+.tx-type-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.tx-type-btns {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tx-type-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.tx-type-btn:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: #fafafa;
+}
+
+.tx-type-btn-active {
+  border-color: #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+  color: #6d28d9;
+}
+
+.tx-type-icon {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.tx-field {
+  margin-bottom: 1rem;
+}
+
+.tx-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.tx-amount-wrap {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 0.4rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.tx-amount-prefix {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.85rem;
+  color: #6b7280;
+  background: #f9fafb;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.tx-amount-input {
+  flex: 1;
+  border: none;
+  border-radius: 0;
+  padding: 0.4rem 0.5rem;
+}
+
+.tx-amount-input:focus {
+  box-shadow: none;
+}
+
+.tx-select,
+.tx-date-input {
+  width: 100%;
+}
+
+.tx-description {
+  min-height: 2.5rem;
+  width: 100%;
+  resize: vertical;
+}
+
+.modal-transaction-actions {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.button-tx-submit {
+  background: #7c3aed;
+}
+
+.button-tx-submit:hover {
+  background: #6d28d9;
 }
 
