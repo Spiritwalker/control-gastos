@@ -71,6 +71,45 @@ body {
   line-height: 1.2;
 }
 
+.sidebar-date-wrap {
+  margin-top: auto;
+  padding: 1rem 1.25rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sidebar-date {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.65);
+  text-transform: capitalize;
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-calendar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0.35rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.sidebar-calendar-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
 .sidebar-nav-icon {
   display: inline-flex;
   align-items: center;
@@ -194,6 +233,81 @@ body {
   padding: 0.5rem 0.75rem;
 }
 
+/* Filtro por cuenta (pill + dropdown) */
+.dashboard-account-filter-wrap {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.dashboard-account-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.dashboard-account-filter-pill:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-account-filter-label {
+  font-weight: 500;
+}
+
+.dashboard-account-filter-chevron {
+  display: flex;
+  color: #6b7280;
+  transition: transform 0.2s ease;
+}
+
+.dashboard-account-filter-pill[aria-expanded="true"] .dashboard-account-filter-chevron {
+  transform: rotate(180deg);
+}
+
+.dashboard-account-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: 12rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+  padding: 0.25rem;
+}
+
+.dashboard-account-filter-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
+}
+
+.dashboard-account-filter-option:hover {
+  background: #f3f4f6;
+}
+
+.dashboard-account-filter-option--active {
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 500;
+}
+
 .dashboard-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr);
@@ -225,6 +339,362 @@ body {
   .dashboard-secondary {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Fila de gráficos: ambos a la misma altura, lado a lado */
+.dashboard-charts-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  align-items: stretch;
+}
+
+.dashboard-charts-row .panel-monthly-chart,
+.dashboard-charts-row .panel-flow-chart {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+/* Panel gráfico saldo al cierre del mes */
+.panel-monthly-chart {
+  padding: 0.9rem 1rem;
+}
+
+.monthly-chart-header {
+  margin-bottom: 0.5rem;
+}
+
+.monthly-chart-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.monthly-chart-variation {
+  margin-left: auto;
+}
+
+.monthly-chart-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.monthly-chart-icon {
+  display: inline-flex;
+  color: #6b7280;
+}
+
+.monthly-chart-total {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthly-chart-sub {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.monthly-chart-wrap {
+  position: relative;
+  min-height: 140px;
+}
+
+.monthly-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.monthly-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.monthly-chart-legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.monthly-chart-bars-and-labels {
+  display: grid;
+  gap: 0.35rem 0;
+  width: 100%;
+}
+
+.monthly-chart-bars-and-labels .monthly-chart-bars-wrap {
+  grid-column: 1 / -1;
+  width: 100%;
+  overflow: hidden;
+}
+
+.monthly-chart-bars-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.monthly-chart-svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  vertical-align: top;
+}
+
+.monthly-chart-bars-and-labels .monthly-chart-label {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.monthly-chart-bar-segment {
+  transition: opacity 0.15s ease;
+}
+
+/* Eje Y como HTML (evita texto estirado/borroso en SVG) */
+.chart-y-axis-labels {
+  position: relative;
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.chart-y-axis-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding-right: 6px;
+  text-align: right;
+  transform: translateY(-50%);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.flow-chart-y-and-bars,
+.monthly-chart-y-and-bars {
+  display: flex;
+  align-items: stretch;
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.flow-chart-y-and-bars .flow-chart-bars-wrap,
+.monthly-chart-y-and-bars .monthly-chart-bars-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+
+.monthly-chart-tooltip {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: #111827;
+  color: #fff;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  min-width: 140px;
+}
+
+.monthly-chart-tooltip-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  color: #d1d5db;
+  font-weight: 500;
+}
+
+.monthly-chart-tooltip-breakdown {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.monthly-chart-tooltip-breakdown li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthly-chart-tooltip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.monthly-chart-tooltip-total {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid #374151;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthly-chart-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* Panel gráfico Flujo de dinero (compacto, misma altura que Saldo al cierre) */
+.panel-flow-chart {
+  padding: 0.9rem 1rem;
+  position: relative;
+}
+
+.flow-chart-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.2rem;
+}
+
+.flow-chart-header-row .flow-chart-title {
+  margin: 0;
+}
+
+.flow-chart-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.flow-chart-filter-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.flow-chart-title {
+  margin: 0 0 0.2rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.flow-chart-sub {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.flow-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+  margin-bottom: 0.4rem;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.flow-chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.flow-chart-legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+
+.flow-chart-legend-dot--income {
+  background: #5b21b6;
+}
+
+.flow-chart-legend-dot--expense {
+  background: #a78bfa;
+}
+
+.flow-chart-wrap {
+  position: relative;
+  min-height: 140px;
+}
+
+.flow-chart-bars-and-labels {
+  display: grid;
+  gap: 0.35rem 0;
+  width: 100%;
+}
+
+.flow-chart-bars-and-labels .flow-chart-bars-wrap {
+  grid-column: 1 / -1;
+  width: 100%;
+  overflow: hidden;
+}
+
+.flow-chart-bars-wrap {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.flow-chart-svg {
+  display: block;
+  width: 100%;
+  height: 120px;
+  vertical-align: top;
+}
+
+.flow-chart-bars-and-labels .flow-chart-label {
+  text-align: center;
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.flow-chart-bar {
+  transition: opacity 0.15s ease;
+  cursor: pointer;
+}
+
+
+
+.flow-chart-tooltip {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.5rem;
+  background: #111827;
+  color: #fff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.flow-chart-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  padding: 1.5rem 0;
+  text-align: center;
 }
 
 .panel {
@@ -1338,15 +1808,15 @@ body {
 
 .goal-card-footer {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
+  align-items: stretch;
+  gap: 0.5rem;
   margin-top: 0.75rem;
 }
 
-.goal-card-footer-right {
-  display: flex;
-  gap: 0.5rem;
+.goal-card-footer > .goal-card-btn-icon {
+  flex: 1;
+  width: auto;
+  min-width: 2.25rem;
 }
 
 .goal-card-btn {
@@ -1354,15 +1824,61 @@ body {
   padding-inline: 0.9rem;
 }
 
+.goal-card-btn-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  min-width: 2.5rem;
+}
+
+.goal-card-btn-icon svg {
+  flex-shrink: 0;
+}
+
+/* Tooltip para botones de metas */
+.goal-card-btn-icon[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #fff;
+  background: #374151;
+  border-radius: 0.35rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+  animation: goalTooltipFade 0.15s ease;
+}
+
+.goal-card-btn-icon[data-tooltip]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 0.1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #374151;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes goalTooltipFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (max-width: 600px) {
   .goal-card-footer {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .goal-card-footer-right {
-    width: 100%;
-    justify-content: space-between;
   }
 }
 
@@ -2252,6 +2768,288 @@ tbody tr:hover {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+/* Botón expandir gráfico */
+.chart-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.chart-expand-btn:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.chart-expand-btn--corner {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 2;
+}
+
+/* Modal gráfico ampliado */
+.chart-expand-modal {
+  max-width: 90vw;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 1.25rem;
+}
+
+.chart-expand-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.chart-expand-modal-header .modal-title {
+  margin: 0;
+}
+
+.chart-expand-modal-body {
+  overflow: auto;
+  min-height: 200px;
+  position: relative;
+}
+
+.chart-expand-modal-body--monthly .chart-expand-modal-labels,
+.chart-expand-modal-body--flow .chart-expand-modal-labels {
+  height: 200px !important;
+}
+
+.chart-expand-modal-body--monthly .chart-expand-modal-svg,
+.chart-expand-modal-body--flow .chart-expand-modal-svg {
+  height: 200px;
+}
+
+/* Modal calendario de actividades */
+.calendar-modal {
+  max-width: 420px;
+  width: 100%;
+  padding: 1rem 1.25rem;
+}
+
+.calendar-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.calendar-modal-header .modal-title {
+  margin: 0;
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.calendar-nav-btn {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f3f4f6;
+  border-radius: 0.35rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #374151;
+  cursor: pointer;
+}
+
+.calendar-nav-btn:hover {
+  background: #e5e7eb;
+}
+
+.calendar-month-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  max-height: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: #f9fafb;
+  border-radius: 0.35rem;
+  font-size: 0.8rem;
+  color: #374151;
+  cursor: pointer;
+  position: relative;
+  overflow: visible;
+}
+
+.calendar-day:hover {
+  background: #f3f4f6;
+}
+
+.calendar-day--empty {
+  background: transparent;
+  cursor: default;
+  max-height: none;
+  aspect-ratio: unset;
+}
+
+.calendar-day--today {
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 600;
+}
+
+.calendar-day--selected {
+  background: #5b21b6;
+  color: #fff;
+  font-weight: 600;
+}
+
+.calendar-day--selected.calendar-day--today {
+  background: #5b21b6;
+  color: #fff;
+}
+
+.calendar-day--has-activity .calendar-day-dots {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #6b7280;
+}
+
+.calendar-day--selected .calendar-day-dots {
+  background: #fff;
+}
+
+/* Tooltip del día (hover) */
+.calendar-day-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  max-width: 280px;
+  max-height: 240px;
+  padding: 0.5rem 0.6rem;
+  background: #1f2937;
+  color: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  z-index: 20;
+  pointer-events: none;
+  text-align: left;
+}
+
+.calendar-day-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.calendar-day-tooltip-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #d1d5db;
+  text-transform: capitalize;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #374151;
+}
+
+.calendar-day-tooltip-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.calendar-day-tooltip-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0;
+  font-size: 0.75rem;
+  color: #e5e7eb;
+  border-bottom: 1px solid #374151;
+}
+
+.calendar-day-tooltip-item:last-child {
+  border-bottom: none;
+}
+
+.calendar-day-tooltip-icon {
+  flex-shrink: 0;
+  color: #9ca3af;
+  font-size: 0.85rem;
+}
+
+.calendar-day-tooltip-amount-in {
+  margin-left: auto;
+  font-weight: 500;
+  color: #34d399;
+}
+
+.calendar-day-tooltip-amount-out {
+  margin-left: auto;
+  font-weight: 500;
+  color: #f87171;
+}
+
+.calendar-day-tooltip-empty {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.calendar-grid {
+  overflow: visible;
 }
 
 /* Modal Todas las transacciones */

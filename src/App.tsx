@@ -14,6 +14,7 @@ const MONTHLY_HOURS_2026: Record<number, number> = {
 };
 
 const MONTH_NAMES_ES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+const MONTH_NAMES_ES_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 /** Horas por mes: 2026 definido; otros años reutilizan 2026 por defecto */
 function getHoursForMonth(year: number, month: number): number {
@@ -67,7 +68,7 @@ function daysUntil(d: Date): number {
 
 type ViewId = "dashboard" | "upcoming" | "goals";
 
-const HOURLY_RATE_STORAGE_KEY = "control-gastos-hourly-rate";
+const HOURLY_RATE_STORAGE_KEY = "balance-plus-hourly-rate";
 const DEFAULT_HOURLY_RATE = 33.5;
 
 interface SalaryEntry {
@@ -148,6 +149,15 @@ const formatCurrency = (value: number) =>
     maximumFractionDigits: 2,
   });
 
+/** Formato compacto para etiquetas del eje Y (sin decimales) */
+const formatCurrencyAxis = (value: number) =>
+  value.toLocaleString("es-MX", {
+    style: "currency",
+    currency: "MXN",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+
 const formatDisplayDate = (iso: string) => {
   if (!iso) return "";
   const [year, month, day] = iso.split("-");
@@ -222,6 +232,9 @@ export function App() {
   const totalsDragRef = useRef({ startX: 0, startScrollLeft: 0 });
   const [places, setPlaces] = useState<string[]>([...DEFAULT_PLACES]);
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [flowChartAccountFilter, setFlowChartAccountFilter] = useState<string | null>(null);
+  const [flowChartAccountFilterOpen, setFlowChartAccountFilterOpen] = useState(false);
+  const flowChartFilterRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<FormState>({
     date: todayIso(),
     place: DEFAULT_PLACES[0],
@@ -254,6 +267,15 @@ export function App() {
   const [contributionAmount, setContributionAmount] = useState("");
   const [contributionError, setContributionError] = useState<string | null>(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
+  const [chartHoveredMonthIndex, setChartHoveredMonthIndex] = useState<number | null>(null);
+  const [flowChartHovered, setFlowChartHovered] = useState<{ monthIndex: number; bar: "income" | "expense" } | null>(null);
+  const [expandedChartModal, setExpandedChartModal] = useState<"monthly" | "flow" | null>(null);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  });
+  const [calendarHoveredDate, setCalendarHoveredDate] = useState<string | null>(null);
   const goalsSliderRef = useRef<HTMLDivElement | null>(null);
   const goalsDragRef = useRef({ startX: 0, startScrollLeft: 0 });
   const achievementsSliderRef = useRef<HTMLDivElement | null>(null);
@@ -370,6 +392,17 @@ export function App() {
       // ignore
     }
   }, [hourlyRate]);
+
+  useEffect(() => {
+    if (!flowChartAccountFilterOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (flowChartFilterRef.current && !flowChartFilterRef.current.contains(e.target as Node)) {
+        setFlowChartAccountFilterOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [flowChartAccountFilterOpen]);
 
   useEffect(() => {
     const totalPages = Math.max(1, Math.ceil(salaryEntries.length / SALARY_PAGE_SIZE));
@@ -547,9 +580,132 @@ export function App() {
 
   const adeudado = ahorrosMamaPapa - grandTotal;
 
+  /** Saldo al cierre de cada mes (últimos 5 meses) para el gráfico. Por mes: total y por cuenta. */
+  const monthlyClosingBalances = useMemo(() => {
+    const now = new Date();
+    const result: Array<{
+      year: number;
+      month: number;
+      total: number;
+      byPlace: Record<string, number>;
+    }> = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const lastDay = new Date(year, month, 0);
+      const lastDayIso = `${year}-${String(month).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`;
+      const byPlace: Record<string, number> = {};
+      for (const p of places) byPlace[p] = 0;
+      let total = 0;
+      for (const e of entries) {
+        if (e.date > lastDayIso) continue;
+        total += e.amount;
+        if (e.place in byPlace) byPlace[e.place] += e.amount;
+      }
+      result.push({ year, month, total, byPlace });
+    }
+    return result;
+  }, [entries, places]);
+
+  /** Variación del saldo al cierre: mes actual vs mes anterior (para el gráfico Saldo al cierre del mes) */
+  const monthlyChartVsLastMonth = useMemo(() => {
+    if (monthlyClosingBalances.length < 2) return null;
+    const curr = monthlyClosingBalances[monthlyClosingBalances.length - 1].total;
+    const prev = monthlyClosingBalances[monthlyClosingBalances.length - 2].total;
+    if (prev === 0) return curr > 0 ? { pct: 100, positive: true } : { pct: 0, positive: true };
+    const pct = ((curr - prev) / Math.abs(prev)) * 100;
+    return { pct, positive: curr >= prev };
+  }, [monthlyClosingBalances]);
+
+  /** Ingresos y gastos por mes (últimos 5 meses, más reciente a la derecha) para el gráfico Flujo de dinero. */
+  const monthlyFlowData = useMemo(() => {
+    const now = new Date();
+    const result: Array<{ year: number; month: number; income: number; expense: number }> = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const prefix = `${year}-${String(month).padStart(2, "0")}`;
+      let income = 0;
+      let expense = 0;
+      for (const e of entries) {
+        if (!e.date.startsWith(prefix)) continue;
+        if (e.amount > 0) income += e.amount;
+        else expense += Math.abs(e.amount);
+      }
+      result.push({ year, month, income, expense });
+    }
+    return result;
+  }, [entries]);
+
+  /** Flujo ingresos/gastos por mes solo para el gráfico Flujo de dinero (filtro por cuenta opcional) */
+  const flowChartMonthlyFlowData = useMemo(() => {
+    const filtered = flowChartAccountFilter
+      ? entries.filter((e) => e.place === flowChartAccountFilter)
+      : entries;
+    const now = new Date();
+    const result: Array<{ year: number; month: number; income: number; expense: number }> = [];
+    for (let i = 4; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = d.getMonth() + 1;
+      const prefix = `${year}-${String(month).padStart(2, "0")}`;
+      let income = 0;
+      let expense = 0;
+      for (const e of filtered) {
+        if (!e.date.startsWith(prefix)) continue;
+        if (e.amount > 0) income += e.amount;
+        else expense += Math.abs(e.amount);
+      }
+      result.push({ year, month, income, expense });
+    }
+    return result;
+  }, [entries, flowChartAccountFilter]);
+
   const nextSalary = useMemo(() => getNextSalaryPayDate(hourlyRate), [hourlyRate]);
   /** En el Dashboard mostramos más salarios para poder hacer scroll horizontal (Junio, Julio, etc.) */
   const upcomingSalaries = useMemo(() => getUpcomingFromEntries(salaryEntries, 12), [salaryEntries]);
+
+  /** Actividades por fecha para el calendario (transacciones, cobros de salario, metas con fecha límite) */
+  const calendarActivitiesByDate = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        transactions: Entry[];
+        salaries: Array<{ date: Date; amount: number; month: number; year: number; id: string }>;
+        goals: Array<{ name: string; deadline: string }>;
+      }
+    > = {};
+    const toYmd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      const day = d.getDate();
+      return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    };
+    entries.forEach((e) => {
+      if (!map[e.date]) map[e.date] = { transactions: [], salaries: [], goals: [] };
+      map[e.date].transactions.push(e);
+    });
+    salaryEntries.forEach((e) => {
+      const date = getLastBusinessDay(e.year, e.month);
+      const key = toYmd(date);
+      if (!map[key]) map[key] = { transactions: [], salaries: [], goals: [] };
+      map[key].salaries.push({
+        date,
+        amount: e.hours * e.hourlyRate,
+        month: e.month,
+        year: e.year,
+        id: e.id,
+      });
+    });
+    savingsGoals.forEach((g) => {
+      if (!g.deadline) return;
+      if (!map[g.deadline]) map[g.deadline] = { transactions: [], salaries: [], goals: [] };
+      map[g.deadline].goals.push({ name: g.name, deadline: g.deadline });
+    });
+    return map;
+  }, [entries, salaryEntries, savingsGoals]);
 
   /** Totalizadores por año (ingresos a la fecha vs proyectados resto del año) */
   const salaryTotalsByYear = useMemo(() => {
@@ -1053,6 +1209,8 @@ export function App() {
         if (selectedGoalForContribution) {
           closeContributionModal();
         }
+        if (expandedChartModal) setExpandedChartModal(null);
+        if (showCalendarModal) setShowCalendarModal(false);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -1066,6 +1224,8 @@ export function App() {
     editingSalaryId,
     showGoalModal,
     selectedGoalForContribution,
+    expandedChartModal,
+    showCalendarModal,
   ]);
 
   return (
@@ -1113,8 +1273,30 @@ export function App() {
               </span>
               Metas de Ahorro
             </a>
+            <a
+              href="#"
+              className={`sidebar-nav-item ${showCalendarModal ? "sidebar-nav-item-active" : ""}`}
+              onClick={(e) => {
+                e.preventDefault();
+                const d = new Date();
+                setCalendarMonth({ year: d.getFullYear(), month: d.getMonth() + 1 });
+                setCalendarHoveredDate(null);
+                setShowCalendarModal(true);
+              }}
+              aria-label="Ver calendario de actividades"
+            >
+              <span className="sidebar-nav-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </span>
+              Calendario
+            </a>
           </div>
         </nav>
+        <div className="sidebar-date-wrap">
+          <span className="sidebar-date" aria-live="polite">
+            {new Date().toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </span>
+        </div>
       </aside>
 
       <div className="main-content">
@@ -1434,31 +1616,35 @@ export function App() {
                           <footer className="goal-card-footer">
                             <button
                               type="button"
-                              className="button button-secondary goal-card-btn"
+                              className="button button-secondary goal-card-btn goal-card-btn-icon"
+                              data-tooltip="Aportar"
                               onClick={() => {
                                 setSelectedGoalForContribution(goal);
                                 setContributionAmount("");
                                 setContributionError(null);
                               }}
+                              aria-label="Aportar"
                             >
-                              + Aportar
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                             </button>
-                            <div className="goal-card-footer-right">
-                              <button
-                                type="button"
-                                className="button button-secondary goal-card-btn"
-                                onClick={() => startEditGoal(goal)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="button goal-card-btn"
-                                onClick={() => markGoalCompleted(goal.id)}
-                              >
-                                Marcar como completada
-                              </button>
-                            </div>
+                            <button
+                              type="button"
+                              className="button button-secondary goal-card-btn goal-card-btn-icon"
+                              data-tooltip="Editar"
+                              onClick={() => startEditGoal(goal)}
+                              aria-label="Editar"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="button goal-card-btn goal-card-btn-icon"
+                              data-tooltip="Marcar como completada"
+                              onClick={() => markGoalCompleted(goal.id)}
+                              aria-label="Marcar como completada"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </button>
                           </footer>
                         </article>
                       );
@@ -2144,7 +2330,7 @@ export function App() {
               <p className="panel-sub">Saldo total en todas las fuentes</p>
               <ul className="accounts-list">
                 {places.map((place) => {
-                  const value = totalsByPlace[place];
+                  const value = totalsByPlace[place] ?? 0;
                   const positive = value >= 0;
                   return (
                     <li key={place} className="accounts-list-item">
@@ -2214,6 +2400,504 @@ export function App() {
             </div>
           </section>
         </div>
+
+        {/* Fila de gráficos: Saldo al cierre + Flujo de dinero (misma altura) */}
+        <div className="dashboard-charts-row">
+        <section className="panel panel-monthly-chart">
+          <div className="monthly-chart-header">
+            <div className="monthly-chart-title-row">
+              <h2 className="panel-title monthly-chart-title">Saldo al cierre del mes</h2>
+              {monthlyChartVsLastMonth != null && (
+                <div className={`panel-total-variation monthly-chart-variation ${monthlyChartVsLastMonth.positive ? "panel-total-variation--up" : "panel-total-variation--down"}`}>
+                  <span className="panel-total-variation-pill">
+                    <span className="panel-total-variation-arrow" aria-hidden>
+                      {monthlyChartVsLastMonth.positive ? "↑" : "↓"}
+                    </span>
+                    <span className="panel-total-variation-pct">
+                      {monthlyChartVsLastMonth.pct.toFixed(1)}%
+                    </span>
+                  </span>
+                  <span className="panel-total-variation-label">vs último mes</span>
+                </div>
+              )}
+              <button
+                type="button"
+                className="chart-expand-btn"
+                onClick={() => setExpandedChartModal("monthly")}
+                title="Ver gráfico más grande"
+                aria-label="Ver gráfico más grande"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>
+            <p className="monthly-chart-total">{formatCurrency(grandTotal)}</p>
+            <p className="panel-sub monthly-chart-sub">Saldo al cierre · últimos 5 meses</p>
+          </div>
+          <div className="monthly-chart-wrap">
+            {monthlyClosingBalances.length === 0 ? (
+              <p className="monthly-chart-empty">No hay movimientos para mostrar.</p>
+            ) : (
+              <>
+                <div className="monthly-chart-legend">
+                  {places.map((place, idx) => (
+                    <span key={place} className="monthly-chart-legend-item">
+                      <span
+                        className="monthly-chart-legend-dot"
+                        style={{
+                          background:
+                            idx === 0 ? "#8b5cf6" : idx === 1 ? "#06b6d4" : "#f97316",
+                        }}
+                      />
+                      {place}
+                    </span>
+                  ))}
+                </div>
+                {(() => {
+                  const extremes = monthlyClosingBalances.reduce(
+                    (acc, m) => ({
+                      max: Math.max(acc.max, m.total),
+                      min: Math.min(acc.min, m.total),
+                    }),
+                    { max: 0, min: 0 },
+                  );
+                  const hasNegatives = extremes.min < 0;
+                  const maxVal = hasNegatives
+                    ? Math.max(1, Math.abs(extremes.max), Math.abs(extremes.min))
+                    : Math.max(1, extremes.max);
+                  const zeroY = 90;
+                  const scale = hasNegatives
+                    ? (v: number) => zeroY - (v / maxVal) * 80
+                    : (v: number) => 170 - (v / maxVal) * 160;
+                  const chartWidth = 400;
+                  const monthlyViewH = 180;
+                  const barW = chartWidth / monthlyClosingBalances.length;
+                  const gap = 24;
+                  const w = Math.max(6, barW - gap);
+                  const placeColors = ["#8b5cf6", "#06b6d4", "#f97316"];
+                  const yTicks = hasNegatives
+                    ? [-1, -0.5, 0, 0.5, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) }))
+                    : [0, 0.25, 0.5, 0.75, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) }));
+                  return (
+                    <div
+                      className="monthly-chart-bars-and-labels"
+                      style={{ gridTemplateColumns: `repeat(${monthlyClosingBalances.length}, 1fr)` }}
+                    >
+                      <div className="monthly-chart-y-and-bars">
+                        <div className="chart-y-axis-labels chart-y-axis-labels--monthly" style={{ height: 120 }}>
+                          {yTicks.map((t, ti) => (
+                            <span
+                              key={`saldo-y-${ti}`}
+                              className="chart-y-axis-label"
+                              style={{ top: `${(t.y / monthlyViewH) * 100}%` }}
+                            >
+                              {formatCurrencyAxis(t.val)}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="monthly-chart-bars-wrap">
+                          <svg className="monthly-chart-svg" viewBox={`0 0 ${chartWidth} ${monthlyViewH}`} preserveAspectRatio="none">
+                            <g className="monthly-chart-y-axis">
+                              {yTicks.map((t, ti) => (
+                                <line key={`saldo-y-${ti}`} x1={0} y1={t.y} x2={chartWidth} y2={t.y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3" />
+                              ))}
+                            </g>
+                            {hasNegatives && <line x1={0} y1={zeroY} x2={chartWidth} y2={zeroY} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4" />}
+                            {monthlyClosingBalances.map((m, i) => {
+                              const x = i * barW + (barW - w) / 2;
+                              let cum = 0;
+                              const segments = places.map((place, pIdx) => {
+                                const val = m.byPlace[place] ?? 0;
+                                const top = scale(cum);
+                                const bottom = scale(cum + val);
+                                cum += val;
+                                const y = Math.min(top, bottom);
+                                const segH = Math.max(0, Math.abs(bottom - top));
+                                return (
+                                  <rect
+                                    key={place}
+                                    x={x}
+                                    y={y}
+                                    width={w}
+                                    height={segH}
+                                    fill={placeColors[pIdx] ?? "#9ca3af"}
+                                    className="monthly-chart-bar-segment"
+                                    opacity={chartHoveredMonthIndex === i ? 1 : chartHoveredMonthIndex != null ? 0.5 : 1}
+                                  />
+                                );
+                              });
+                              return (
+                                <g
+                                  key={`${m.year}-${m.month}`}
+                                  onMouseEnter={() => setChartHoveredMonthIndex(i)}
+                                  onMouseLeave={() => setChartHoveredMonthIndex(null)}
+                                >
+                                  {segments}
+                                </g>
+                              );
+                            })}
+                          </svg>
+                        </div>
+                      </div>
+                      {monthlyClosingBalances.map((m) => (
+                        <span key={`${m.year}-${m.month}`} className="monthly-chart-label">
+                          {MONTH_NAMES_ES_SHORT[m.month - 1]}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {chartHoveredMonthIndex != null && monthlyClosingBalances[chartHoveredMonthIndex] && (() => {
+                  const m = monthlyClosingBalances[chartHoveredMonthIndex];
+                  const placeColors = ["#8b5cf6", "#06b6d4", "#f97316"];
+                  return (
+                    <div className="monthly-chart-tooltip">
+                      <div className="monthly-chart-tooltip-title">
+                        Saldo al cierre de {MONTH_NAMES_ES[m.month - 1]} {m.year}
+                      </div>
+                      <ul className="monthly-chart-tooltip-breakdown">
+                        {places.map((place, idx) => (
+                          <li key={place}>
+                            <span className="monthly-chart-tooltip-dot" style={{ background: placeColors[idx] ?? "#9ca3af" }} />
+                            {place}: {formatCurrency(m.byPlace[place] ?? 0)}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="monthly-chart-tooltip-total">
+                        Total: {formatCurrency(m.total)}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Gráfico Flujo de dinero (Ingresos vs Gastos por mes) */}
+        <section className="panel panel-flow-chart">
+          <div className="flow-chart-header-row">
+            <h2 className="panel-title flow-chart-title">Flujo de dinero</h2>
+            <div className="flow-chart-header-actions">
+              <div className="flow-chart-filter-wrap" ref={flowChartFilterRef}>
+              <button
+                type="button"
+                className="dashboard-account-filter-pill flow-chart-filter-pill"
+                onClick={() => setFlowChartAccountFilterOpen((o) => !o)}
+                aria-expanded={flowChartAccountFilterOpen}
+                aria-haspopup="listbox"
+                aria-label="Filtrar por cuenta"
+              >
+                <span className="dashboard-account-filter-label">
+                  {flowChartAccountFilter ?? "Todas las cuentas"}
+                </span>
+                <span className="dashboard-account-filter-chevron" aria-hidden>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </span>
+              </button>
+              {flowChartAccountFilterOpen && (
+                <div className="dashboard-account-filter-dropdown flow-chart-filter-dropdown" role="listbox">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={flowChartAccountFilter === null}
+                    className={`dashboard-account-filter-option ${flowChartAccountFilter === null ? "dashboard-account-filter-option--active" : ""}`}
+                    onClick={() => { setFlowChartAccountFilter(null); setFlowChartAccountFilterOpen(false); }}
+                  >
+                    Todas las cuentas
+                  </button>
+                  {places.map((place) => (
+                    <button
+                      key={place}
+                      type="button"
+                      role="option"
+                      aria-selected={flowChartAccountFilter === place}
+                      className={`dashboard-account-filter-option ${flowChartAccountFilter === place ? "dashboard-account-filter-option--active" : ""}`}
+                      onClick={() => { setFlowChartAccountFilter(place); setFlowChartAccountFilterOpen(false); }}
+                    >
+                      {place}
+                    </button>
+                  ))}
+                </div>
+              )}
+              </div>
+              <button
+                type="button"
+                className="chart-expand-btn"
+                onClick={() => setExpandedChartModal("flow")}
+                title="Ver gráfico más grande"
+                aria-label="Ver gráfico más grande"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              </button>
+            </div>
+          </div>
+          <p className="panel-sub flow-chart-sub">Ingresos y gastos · últimos 5 meses</p>
+          <div className="flow-chart-legend">
+            <span className="flow-chart-legend-item">
+              <span className="flow-chart-legend-dot flow-chart-legend-dot--income" />
+              Ingresos
+            </span>
+            <span className="flow-chart-legend-item">
+              <span className="flow-chart-legend-dot flow-chart-legend-dot--expense" />
+              Gastos
+            </span>
+          </div>
+          <div className="flow-chart-wrap">
+            {flowChartMonthlyFlowData.length === 0 ? (
+              <p className="flow-chart-empty">No hay movimientos para mostrar.</p>
+            ) : (
+              <>
+                {(() => {
+                  const maxVal = Math.max(
+                    1,
+                    ...flowChartMonthlyFlowData.flatMap((m) => [m.income, m.expense]),
+                  );
+                  const scale = (v: number) => 120 - (v / maxVal) * 110;
+                  const chartWidth = 400;
+                  const flowViewH = 140;
+                  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) }));
+                  const barGroupWidth = chartWidth / flowChartMonthlyFlowData.length;
+                  const barWidth = Math.max(6, barGroupWidth * 0.32);
+                  const gap = barGroupWidth * 0.08;
+                  const incomeX = (groupIndex: number) => groupIndex * barGroupWidth + gap;
+                  const expenseX = (groupIndex: number) => groupIndex * barGroupWidth + barGroupWidth / 2 + gap / 2;
+                  const minBarH = 2;
+                  return (
+                    <div
+                      className="flow-chart-bars-and-labels"
+                      style={{ gridTemplateColumns: `repeat(${flowChartMonthlyFlowData.length}, 1fr)` }}
+                    >
+                      <div className="flow-chart-y-and-bars">
+                        <div className="chart-y-axis-labels chart-y-axis-labels--flow" style={{ height: 120 }}>
+                          {yTicks.map((t, ti) => (
+                            <span
+                              key={`flow-y-${ti}`}
+                              className="chart-y-axis-label"
+                              style={{ top: `${(t.y / flowViewH) * 100}%` }}
+                            >
+                              {formatCurrencyAxis(t.val)}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="flow-chart-bars-wrap">
+                          <svg className="flow-chart-svg" viewBox={`0 0 ${chartWidth} ${flowViewH}`} preserveAspectRatio="none">
+                            <g className="flow-chart-y-axis">
+                              {yTicks.map((t, ti) => (
+                                <line key={`flow-y-${ti}`} x1={0} y1={t.y} x2={chartWidth} y2={t.y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3" />
+                              ))}
+                            </g>
+                            {flowChartMonthlyFlowData.map((m, i) => (
+                              <g key={`${m.year}-${m.month}`}>
+                                <rect
+                                  x={incomeX(i)}
+                                  y={scale(m.income)}
+                                  width={barWidth}
+                                  height={Math.max(minBarH, 120 - scale(m.income))}
+                                  fill="#5b21b6"
+                                  className="flow-chart-bar"
+                                  opacity={flowChartHovered?.monthIndex === i && flowChartHovered?.bar === "income" ? 1 : flowChartHovered != null ? 0.45 : 1}
+                                  onMouseEnter={() => setFlowChartHovered({ monthIndex: i, bar: "income" })}
+                                  onMouseLeave={() => setFlowChartHovered(null)}
+                                />
+                                <rect
+                                  x={expenseX(i)}
+                                  y={scale(m.expense)}
+                                  width={barWidth}
+                                  height={Math.max(minBarH, 120 - scale(m.expense))}
+                                  fill="#a78bfa"
+                                  className="flow-chart-bar"
+                                  opacity={flowChartHovered?.monthIndex === i && flowChartHovered?.bar === "expense" ? 1 : flowChartHovered != null ? 0.45 : 1}
+                                  onMouseEnter={() => setFlowChartHovered({ monthIndex: i, bar: "expense" })}
+                                  onMouseLeave={() => setFlowChartHovered(null)}
+                                />
+                              </g>
+                            ))}
+                          </svg>
+                        </div>
+                      </div>
+                      {flowChartMonthlyFlowData.map((m) => (
+                        <span key={`${m.year}-${m.month}`} className="flow-chart-label">
+                          {MONTH_NAMES_ES_SHORT[m.month - 1]}
+                        </span>
+                      ))}
+                    </div>
+                  );
+                })()}
+                {flowChartHovered != null && flowChartMonthlyFlowData[flowChartHovered.monthIndex] && (
+                  <div className="flow-chart-tooltip">
+                    {flowChartHovered.bar === "income"
+                      ? formatCurrency(flowChartMonthlyFlowData[flowChartHovered.monthIndex].income)
+                      : formatCurrency(flowChartMonthlyFlowData[flowChartHovered.monthIndex].expense)}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+        </div>
+
+      {/* Modal gráfico ampliado */}
+      {expandedChartModal && (
+        <div
+          className="modal-overlay chart-expand-modal-overlay"
+          onClick={() => setExpandedChartModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="chart-expand-modal-title"
+        >
+          <div className="modal chart-expand-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="chart-expand-modal-header">
+              <h2 id="chart-expand-modal-title" className="modal-title">
+                {expandedChartModal === "monthly" ? "Saldo al cierre del mes" : "Flujo de dinero"}
+              </h2>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setExpandedChartModal(null)}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            <div className={`chart-expand-modal-body chart-expand-modal-body--${expandedChartModal}`}>
+              {expandedChartModal === "monthly" && (
+                monthlyClosingBalances.length === 0 ? (
+                  <p className="monthly-chart-empty">No hay movimientos para mostrar.</p>
+                ) : (
+                  <>
+                    <div className="monthly-chart-legend">
+                      {places.map((place, idx) => (
+                        <span key={place} className="monthly-chart-legend-item">
+                          <span className="monthly-chart-legend-dot" style={{ background: idx === 0 ? "#8b5cf6" : idx === 1 ? "#06b6d4" : "#f97316" }} />
+                          {place}
+                        </span>
+                      ))}
+                    </div>
+                    {(() => {
+                      const extremes = monthlyClosingBalances.reduce((acc, m) => ({ max: Math.max(acc.max, m.total), min: Math.min(acc.min, m.total) }), { max: 0, min: 0 });
+                      const hasNegatives = extremes.min < 0;
+                      const maxVal = hasNegatives ? Math.max(1, Math.abs(extremes.max), Math.abs(extremes.min)) : Math.max(1, extremes.max);
+                      const zeroY = 90;
+                      const scale = hasNegatives ? (v: number) => zeroY - (v / maxVal) * 80 : (v: number) => 170 - (v / maxVal) * 160;
+                      const chartWidth = 400;
+                      const monthlyViewH = 180;
+                      const barW = chartWidth / monthlyClosingBalances.length;
+                      const gap = 24;
+                      const w = Math.max(6, barW - gap);
+                      const placeColors = ["#8b5cf6", "#06b6d4", "#f97316"];
+                      const yTicks = hasNegatives ? [-1, -0.5, 0, 0.5, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) })) : [0, 0.25, 0.5, 0.75, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) }));
+                      return (
+                        <div className="monthly-chart-bars-and-labels" style={{ gridTemplateColumns: `repeat(${monthlyClosingBalances.length}, 1fr)` }}>
+                          <div className="monthly-chart-y-and-bars">
+                            <div className="chart-y-axis-labels chart-y-axis-labels--monthly chart-expand-modal-labels">
+                              {yTicks.map((t, ti) => (
+                                <span key={`saldo-y-${ti}`} className="chart-y-axis-label" style={{ top: `${(t.y / monthlyViewH) * 100}%` }}>{formatCurrencyAxis(t.val)}</span>
+                              ))}
+                            </div>
+                            <div className="monthly-chart-bars-wrap">
+                              <svg className="monthly-chart-svg chart-expand-modal-svg" viewBox={`0 0 ${chartWidth} ${monthlyViewH}`} preserveAspectRatio="none">
+                                <g className="monthly-chart-y-axis">
+                                  {yTicks.map((t, ti) => (<line key={`saldo-y-${ti}`} x1={0} y1={t.y} x2={chartWidth} y2={t.y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3" />))}
+                                </g>
+                                {hasNegatives && <line x1={0} y1={zeroY} x2={chartWidth} y2={zeroY} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4" />}
+                                {monthlyClosingBalances.map((m, i) => {
+                                  const x = i * barW + (barW - w) / 2;
+                                  let cum = 0;
+                                  const segments = places.map((place, pIdx) => {
+                                    const val = m.byPlace[place] ?? 0;
+                                    const top = scale(cum);
+                                    const bottom = scale(cum + val);
+                                    cum += val;
+                                    const y = Math.min(top, bottom);
+                                    const segH = Math.max(0, Math.abs(bottom - top));
+                                    return <rect key={place} x={x} y={y} width={w} height={segH} fill={placeColors[pIdx] ?? "#9ca3af"} className="monthly-chart-bar-segment" opacity={chartHoveredMonthIndex === i ? 1 : chartHoveredMonthIndex != null ? 0.5 : 1} />;
+                                  });
+                                  return (
+                                    <g key={`${m.year}-${m.month}`} onMouseEnter={() => setChartHoveredMonthIndex(i)} onMouseLeave={() => setChartHoveredMonthIndex(null)}>{segments}</g>
+                                  );
+                                })}
+                              </svg>
+                            </div>
+                          </div>
+                          {monthlyClosingBalances.map((m) => (<span key={`${m.year}-${m.month}`} className="monthly-chart-label">{MONTH_NAMES_ES_SHORT[m.month - 1]}</span>))}
+                        </div>
+                      );
+                    })()}
+                    {chartHoveredMonthIndex != null && monthlyClosingBalances[chartHoveredMonthIndex] && (() => {
+                      const m = monthlyClosingBalances[chartHoveredMonthIndex];
+                      const placeColors = ["#8b5cf6", "#06b6d4", "#f97316"];
+                      return (
+                        <div className="monthly-chart-tooltip">
+                          <div className="monthly-chart-tooltip-title">Saldo al cierre de {MONTH_NAMES_ES[m.month - 1]} {m.year}</div>
+                          <ul className="monthly-chart-tooltip-breakdown">
+                            {places.map((place, idx) => (
+                              <li key={place}><span className="monthly-chart-tooltip-dot" style={{ background: placeColors[idx] ?? "#9ca3af" }} />{place}: {formatCurrency(m.byPlace[place] ?? 0)}</li>
+                            ))}
+                          </ul>
+                          <div className="monthly-chart-tooltip-total">Total: {formatCurrency(m.total)}</div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )
+              )}
+              {expandedChartModal === "flow" && (
+                flowChartMonthlyFlowData.length === 0 ? (
+                  <p className="flow-chart-empty">No hay movimientos para mostrar.</p>
+                ) : (
+                  <>
+                    <div className="flow-chart-legend">
+                      <span className="flow-chart-legend-item"><span className="flow-chart-legend-dot flow-chart-legend-dot--income" />Ingresos</span>
+                      <span className="flow-chart-legend-item"><span className="flow-chart-legend-dot flow-chart-legend-dot--expense" />Gastos</span>
+                    </div>
+                    {(() => {
+                      const maxVal = Math.max(1, ...flowChartMonthlyFlowData.flatMap((m) => [m.income, m.expense]));
+                      const scale = (v: number) => 120 - (v / maxVal) * 110;
+                      const chartWidth = 400;
+                      const flowViewH = 140;
+                      const yTicks = [0, 0.25, 0.5, 0.75, 1].map((q) => ({ val: maxVal * q, y: scale(maxVal * q) }));
+                      const barGroupWidth = chartWidth / flowChartMonthlyFlowData.length;
+                      const barWidth = Math.max(6, barGroupWidth * 0.32);
+                      const gap = barGroupWidth * 0.08;
+                      const incomeX = (groupIndex: number) => groupIndex * barGroupWidth + gap;
+                      const expenseX = (groupIndex: number) => groupIndex * barGroupWidth + barGroupWidth / 2 + gap / 2;
+                      const minBarH = 2;
+                      return (
+                        <div className="flow-chart-bars-and-labels" style={{ gridTemplateColumns: `repeat(${flowChartMonthlyFlowData.length}, 1fr)` }}>
+                          <div className="flow-chart-y-and-bars">
+                            <div className="chart-y-axis-labels chart-y-axis-labels--flow chart-expand-modal-labels">
+                              {yTicks.map((t, ti) => (<span key={`flow-y-${ti}`} className="chart-y-axis-label" style={{ top: `${(t.y / flowViewH) * 100}%` }}>{formatCurrencyAxis(t.val)}</span>))}
+                            </div>
+                            <div className="flow-chart-bars-wrap">
+                              <svg className="flow-chart-svg chart-expand-modal-svg" viewBox={`0 0 ${chartWidth} ${flowViewH}`} preserveAspectRatio="none">
+                                <g className="flow-chart-y-axis">
+                                  {yTicks.map((t, ti) => (<line key={`flow-y-${ti}`} x1={0} y1={t.y} x2={chartWidth} y2={t.y} stroke="#e5e7eb" strokeWidth="1" strokeDasharray="3" />))}
+                                </g>
+                                {flowChartMonthlyFlowData.map((m, i) => (
+                                  <g key={`${m.year}-${m.month}`}>
+                                    <rect x={incomeX(i)} y={scale(m.income)} width={barWidth} height={Math.max(minBarH, 120 - scale(m.income))} fill="#5b21b6" className="flow-chart-bar" opacity={flowChartHovered?.monthIndex === i && flowChartHovered?.bar === "income" ? 1 : flowChartHovered != null ? 0.45 : 1} onMouseEnter={() => setFlowChartHovered({ monthIndex: i, bar: "income" })} onMouseLeave={() => setFlowChartHovered(null)} />
+                                    <rect x={expenseX(i)} y={scale(m.expense)} width={barWidth} height={Math.max(minBarH, 120 - scale(m.expense))} fill="#a78bfa" className="flow-chart-bar" opacity={flowChartHovered?.monthIndex === i && flowChartHovered?.bar === "expense" ? 1 : flowChartHovered != null ? 0.45 : 1} onMouseEnter={() => setFlowChartHovered({ monthIndex: i, bar: "expense" })} onMouseLeave={() => setFlowChartHovered(null)} />
+                                  </g>
+                                ))}
+                              </svg>
+                            </div>
+                          </div>
+                          {flowChartMonthlyFlowData.map((m) => (<span key={`${m.year}-${m.month}`} className="flow-chart-label">{MONTH_NAMES_ES_SHORT[m.month - 1]}</span>))}
+                        </div>
+                      );
+                    })()}
+                    {flowChartHovered != null && flowChartMonthlyFlowData[flowChartHovered.monthIndex] && (
+                      <div className="flow-chart-tooltip">
+                        {flowChartHovered.bar === "income" ? formatCurrency(flowChartMonthlyFlowData[flowChartHovered.monthIndex].income) : formatCurrency(flowChartMonthlyFlowData[flowChartHovered.monthIndex].expense)}
+                      </div>
+                    )}
+                  </>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
         <div className="dashboard-secondary">
           <section className="panel panel-upcoming">
@@ -2337,6 +3021,130 @@ export function App() {
         </>
         )}
       </div>
+
+      {/* Modal calendario de actividades */}
+      {showCalendarModal && (() => {
+        const { year, month } = calendarMonth;
+        const first = new Date(year, month - 1, 1);
+        const last = new Date(year, month, 0);
+        const lastDate = last.getDate();
+        const firstWeekday = (first.getDay() + 6) % 7;
+        const totalCells = firstWeekday + lastDate;
+        const weeks = Math.ceil(totalCells / 7);
+        const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+        const todayYmd = (() => {
+          const t = new Date();
+          return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+        })();
+        const prevMonth = () => {
+          if (month === 1) setCalendarMonth({ year: year - 1, month: 12 });
+          else setCalendarMonth({ year, month: month - 1 });
+        };
+        const nextMonth = () => {
+          if (month === 12) setCalendarMonth({ year: year + 1, month: 1 });
+          else setCalendarMonth({ year, month: month + 1 });
+        };
+        const cells: Array<{ day: number | null; ymd: string | null }> = [];
+        for (let i = 0; i < weeks * 7; i++) {
+          if (i < firstWeekday || i >= firstWeekday + lastDate) {
+            cells.push({ day: null, ymd: null });
+          } else {
+            const day = i - firstWeekday + 1;
+            const ymd = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+            cells.push({ day, ymd });
+          }
+        }
+        return (
+          <div
+            className="modal-overlay"
+            onClick={() => setShowCalendarModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-modal-title"
+          >
+            <div className="modal calendar-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="calendar-modal-header">
+                <h2 id="calendar-modal-title" className="modal-title">Calendario de actividades</h2>
+                <button type="button" className="modal-close-btn" onClick={() => setShowCalendarModal(false)} aria-label="Cerrar">×</button>
+              </div>
+              <div className="calendar-nav">
+                <button type="button" className="calendar-nav-btn" onClick={prevMonth} aria-label="Mes anterior">‹</button>
+                <span className="calendar-month-label">{MONTH_NAMES_ES[month - 1]} {year}</span>
+                <button type="button" className="calendar-nav-btn" onClick={nextMonth} aria-label="Mes siguiente">›</button>
+              </div>
+              <div className="calendar-weekdays">
+                {weekDays.map((d) => (
+                  <span key={d} className="calendar-weekday">{d}</span>
+                ))}
+              </div>
+              <div className="calendar-grid">
+                {cells.map((c, i) => {
+                  if (c.day === null) {
+                    return <div key={`e-${i}`} className="calendar-day calendar-day--empty" />;
+                  }
+                  const ymd = c.ymd!;
+                  const act = calendarActivitiesByDate[ymd];
+                  const hasActivity = act && (act.transactions.length > 0 || act.salaries.length > 0 || act.goals.length > 0);
+                  const isToday = ymd === todayYmd;
+                  const isHovered = ymd === calendarHoveredDate;
+                  const dayActivities = calendarActivitiesByDate[ymd];
+                  return (
+                    <button
+                      key={ymd}
+                      type="button"
+                      className={`calendar-day ${isToday ? "calendar-day--today" : ""} ${isHovered ? "calendar-day--selected" : ""} ${hasActivity ? "calendar-day--has-activity" : ""}`}
+                      onMouseEnter={() => setCalendarHoveredDate(ymd)}
+                      onMouseLeave={() => setCalendarHoveredDate(null)}
+                    >
+                      <span className="calendar-day-num">{c.day}</span>
+                      {hasActivity && <span className="calendar-day-dots" />}
+                      {isHovered && (
+                        <div className="calendar-day-tooltip" role="tooltip">
+                          <div className="calendar-day-tooltip-title">
+                            {(() => {
+                              const [y, m, d] = ymd.split("-");
+                              const date = new Date(Number(y), Number(m) - 1, Number(d));
+                              return date.toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long" });
+                            })()}
+                          </div>
+                          {dayActivities && (dayActivities.transactions.length > 0 || dayActivities.salaries.length > 0 || dayActivities.goals.length > 0) ? (
+                            <ul className="calendar-day-tooltip-list">
+                              {dayActivities.transactions.map((e) => (
+                                <li key={`tx-${e.id}`} className="calendar-day-tooltip-item">
+                                  <span className="calendar-day-tooltip-icon">↕</span>
+                                  <span>{e.comment || "Transacción"}</span>
+                                  <span className={e.amount >= 0 ? "calendar-day-tooltip-amount-in" : "calendar-day-tooltip-amount-out"}>
+                                    {e.amount >= 0 ? "+" : ""}{formatCurrency(e.amount)}
+                                  </span>
+                                </li>
+                              ))}
+                              {dayActivities.salaries.map((s) => (
+                                <li key={`sal-${s.id}`} className="calendar-day-tooltip-item">
+                                  <span className="calendar-day-tooltip-icon">$</span>
+                                  <span>Cobro salario {MONTH_NAMES_ES[s.month - 1]} {s.year}</span>
+                                  <span className="calendar-day-tooltip-amount-in">{formatCurrency(s.amount)}</span>
+                                </li>
+                              ))}
+                              {dayActivities.goals.map((g, idx) => (
+                                <li key={`goal-${g.deadline}-${idx}`} className="calendar-day-tooltip-item">
+                                  <span className="calendar-day-tooltip-icon">◎</span>
+                                  <span>Fecha límite: {g.name}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="calendar-day-tooltip-empty">Sin actividades este día.</p>
+                          )}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
