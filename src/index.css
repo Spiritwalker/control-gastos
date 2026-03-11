@@ -66,7 +66,7 @@ body {
 }
 
 .sidebar-nav-item-active .sidebar-nav-icon {
-  color: #111827;
+  color: #374151;
 }
 
 .sidebar-nav {
@@ -101,8 +101,8 @@ body {
 }
 
 .sidebar-nav-item-active {
-  background: rgba(99, 102, 241, 0.1);
-  color: #4f46e5;
+  background: rgba(0, 0, 0, 0.06);
+  color: #374151;
   font-weight: 500;
 }
 
@@ -127,6 +127,30 @@ body {
   font-size: 0.8rem;
   color: #6b7280;
   margin-bottom: 0.5rem;
+}
+
+.breadcrumb-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: inherit;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.breadcrumb-link:hover {
+  color: #111827;
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: #9ca3af;
+  margin: 0 0.25rem;
+}
+
+.breadcrumb-current {
+  color: #6b7280;
 }
 
 .reference-bar-compact {
@@ -278,7 +302,7 @@ body {
   min-height: 2.75rem;
   padding: 0.6rem 1rem;
   font-size: 0.875rem;
-  background: #111827;
+  background: #374151;
   color: #fff;
   border: none;
   justify-content: center;
@@ -287,7 +311,7 @@ body {
 
 .panel-actions .button:hover,
 .panel-transactions-footer .button-ver-todas:hover {
-  background: #374151;
+  background: #4b5563;
 }
 
 .add-category-inline {
@@ -358,12 +382,12 @@ body {
 
 .tx-list-icon-in {
   background: #dcfce7;
-  color: #166534;
+  color: #15803d;
 }
 
 .tx-list-icon-out {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #be123c;
 }
 
 .tx-list-body {
@@ -393,13 +417,13 @@ body {
 .tx-list-amount-in {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #15803d;
+  color: #166534;
 }
 
 .tx-list-amount-out {
   font-variant-numeric: tabular-nums;
   font-weight: 500;
-  color: #b91c1c;
+  color: #9f1239;
 }
 
 .btn-delete-inline {
@@ -412,15 +436,571 @@ body {
 }
 
 .btn-delete-inline:hover {
-  color: #b91c1c;
+  color: #be123c;
 }
 
 .panel-upcoming {
-  margin-top: 0;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
 }
 
 .panel-upcoming .panel-sub {
   margin-bottom: 0;
+}
+
+/* Vista Próximos salarios (página ABM) – tipo tabla */
+.panel-upcoming-page {
+  margin-top: 0;
+}
+
+.salary-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.salary-page-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.button-add-salary {
+  flex-shrink: 0;
+}
+
+.salary-page-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.salary-page-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.salary-page-table th,
+.salary-page-table td {
+  padding: 0.625rem 0.875rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.salary-page-table th {
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+.salary-page-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Mes actual: toda la fila con fondo sólido (estilo imagen) */
+.salary-page-table tbody tr.salary-page-row-current-month td {
+  background: #e0e7ff;
+}
+
+.salary-page-table tbody tr.salary-page-row-current-month:hover td {
+  background: #c7d2fe;
+}
+
+.salary-page-th-num,
+.salary-page-td-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-page-th-actions,
+.salary-page-td-actions {
+  width: 5rem;
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.salary-page-empty-cell {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  padding: 2rem 1rem;
+}
+
+.salary-page-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.salary-page-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  background: #f3f4f6;
+  color: #4b5563;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.15s, color 0.15s;
+}
+
+.salary-page-action-btn:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.salary-page-action-btn--edit:hover {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.salary-page-action-btn--delete:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.salary-page-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.salary-page-pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.salary-page-pagination-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Totalizadores por año (Próximos salarios) */
+.salary-totals-by-year {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Slider horizontal cuando hay varios años: sin barra, arrastre con mouse */
+.salary-totals-slider {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.25rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.salary-totals-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.salary-totals-slider.salary-totals-slider--grabbing {
+  cursor: grabbing;
+}
+
+.salary-totals-slider .salary-totals-card {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+
+.salary-totals-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  min-width: 12rem;
+}
+
+.salary-totals-year {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.salary-totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.salary-totals-row + .salary-totals-row {
+  margin-top: 0.25rem;
+}
+
+.salary-totals-label {
+  color: #64748b;
+}
+
+.salary-totals-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #334155;
+}
+
+/* Modal formulario salario (alta/edición) */
+.modal-salary-form .salary-form-card-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-salary-form .salary-abm-calc {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.salary-modal-error {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #fecaca;
+}
+
+/* Próximos salarios – diseño tipo Upcoming Events (dashboard) */
+.upcoming-events-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.upcoming-events-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.upcoming-events-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.upcoming-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .upcoming-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upcoming-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.upcoming-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.upcoming-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #f3f4f6;
+  border-radius: 0.5rem;
+  color: #6b7280;
+}
+
+.upcoming-card-status {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.upcoming-card-status--next {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.upcoming-card-status--pending {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.upcoming-card-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.upcoming-card-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.upcoming-card-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.upcoming-card-progress-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.upcoming-card-progress-bar {
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.upcoming-card-progress-fill {
+  height: 100%;
+  background: #9ca3af;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.upcoming-card-amount {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #111827;
+}
+
+.upcoming-card-amount-label {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.upcoming-card-date {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.upcoming-card-date-icon {
+  display: inline-flex;
+  color: #9ca3af;
+}
+
+.upcoming-card-link {
+  font-size: 0.8rem;
+  color: #4b5563;
+  text-decoration: none;
+  margin-top: 0.25rem;
+  transition: color 0.15s ease;
+}
+
+.upcoming-card-link:hover {
+  color: #111827;
+}
+
+/* Mi salario mensual */
+.panel-salary {
+  max-width: 32rem;
+}
+
+.salary-rate-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.salary-rate-label {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.salary-rate-input {
+  width: 6rem;
+  text-align: right;
+}
+
+.salary-table-wrap {
+  overflow-x: auto;
+}
+
+.salary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.salary-table th,
+.salary-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.salary-table th {
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.salary-table td:last-child,
+.salary-table th:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.salary-table tfoot tr {
+  font-weight: 600;
+  background: #f9fafb;
+}
+
+.salary-table tfoot td {
+  border-bottom: none;
+  padding-top: 0.75rem;
+}
+
+.salary-table-actions {
+  white-space: nowrap;
+}
+
+.salary-table-actions .btn-link {
+  margin-right: 0.5rem;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.8rem;
+  color: #4b5563;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: #111827;
+}
+
+.btn-link-danger:hover {
+  color: #be123c;
+}
+
+/* ABM Próximos salarios */
+.salary-abm-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.salary-abm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.salary-abm-field label {
+  font-size: 0.8rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.salary-abm-input,
+.salary-abm-select {
+  width: 6rem;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+}
+
+.salary-abm-select {
+  width: auto;
+  min-width: 8rem;
+}
+
+.salary-abm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.salary-abm-calc {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+}
+
+.salary-abm-calc strong {
+  color: #111827;
+}
+
+.salary-abm-empty {
+  margin-top: 0.75rem;
+  font-style: italic;
+}
+
+.upcoming-card-empty {
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 120px;
+}
+
+.upcoming-card-empty-text {
+  margin: 0 0 0.5rem;
+  color: #6b7280;
+  font-size: 0.9rem;
 }
 
 .add-category {
@@ -489,35 +1069,51 @@ body {
   border-radius: 0.75rem;
 }
 
-/* Saldo a favor: tono verde suave */
+/* Saldo a favor: tono verde suave (subdued) */
 .reference-bar--available {
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
 }
 
 .reference-bar--available .reference-main,
 .reference-bar--available .reference-amount {
-  color: #065f46;
+  color: #166534;
 }
 
 .reference-bar--available .reference-right {
-  color: #047857;
+  color: #15803d;
   font-weight: 600;
 }
 
-/* Deuda (faltando): tono rojo/coral suave */
+/* Barra neutra (ej. Próximo cobro en Próximos salarios) */
+.reference-bar--neutral {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.reference-bar--neutral .reference-main,
+.reference-bar--neutral .reference-amount {
+  color: #475569;
+}
+
+.reference-bar--neutral .reference-right {
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* Deuda (faltando): tono rojo suave (subdued) */
 .reference-bar--owing {
-  background: #fef2f2;
+  background: #fff5f5;
   border: 1px solid #fecaca;
 }
 
 .reference-bar--owing .reference-main,
 .reference-bar--owing .reference-amount {
-  color: #991b1b;
+  color: #9f1239;
 }
 
 .reference-bar--owing .reference-right {
-  color: #b91c1c;
+  color: #be123c;
   font-weight: 600;
 }
 
