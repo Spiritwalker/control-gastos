@@ -208,6 +208,25 @@ body {
   }
 }
 
+.dashboard-secondary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.9fr);
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  align-items: stretch;
+}
+
+.dashboard-secondary .panel-upcoming,
+.dashboard-secondary .panel-goals-summary {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .dashboard-secondary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .panel {
   background: #ffffff;
   border-radius: 0.75rem;
@@ -246,12 +265,57 @@ body {
   color: #111827;
 }
 
+.panel-total-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0;
+}
+
 .panel-total {
   font-size: 1.75rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: #111827;
-  margin: 0.5rem 0 0;
+  margin: 0;
+}
+
+.panel-total-variation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.panel-total-variation-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.panel-total-variation--up .panel-total-variation-pill {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.panel-total-variation--down .panel-total-variation-pill {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.panel-total-variation-arrow {
+  font-size: 0.75em;
+  line-height: 1;
+}
+
+.panel-total-variation-label {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #6b7280;
 }
 
 .panel-sub {
@@ -482,6 +546,12 @@ body {
 
 .panel-upcoming .panel-sub {
   margin-bottom: 0;
+}
+
+/* Ajuste de márgenes para Próximos salarios en el Dashboard (segunda fila) */
+.dashboard-secondary .panel-upcoming {
+  margin-top: 0;
+  padding-top: 1.25rem;
 }
 
 /* Vista Próximos salarios (página ABM) – tipo tabla */
@@ -746,8 +816,7 @@ body {
 }
 
 .upcoming-cards {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: 1rem;
 }
 
@@ -766,6 +835,9 @@ body {
   flex-direction: column;
   gap: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  min-width: 260px;
+  max-width: 320px;
+  flex: 0 0 auto;
 }
 
 .upcoming-card-top {
@@ -1039,6 +1111,454 @@ body {
   font-size: 0.9rem;
 }
 
+/* Slider horizontal para Próximos salarios en Dashboard */
+.upcoming-cards-slider {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.25rem;
+  cursor: grab;
+  user-select: none;
+}
+
+.upcoming-cards-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.upcoming-cards-slider.upcoming-cards-slider--grabbing {
+  cursor: grabbing;
+}
+
+.upcoming-cards-slider > .upcoming-card {
+  scroll-snap-align: start;
+}
+
+/* Metas de Ahorro */
+.panel-goals {
+  margin-top: 0;
+}
+
+.goals-layout {
+  display: block;
+}
+
+.goals-form-card {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: #f9fafb;
+}
+
+.goals-form-grid {
+  margin-top: 0.75rem;
+}
+
+.goals-error-text {
+  margin-top: 0.5rem;
+}
+
+.goals-form-actions {
+  margin-top: 0.75rem;
+}
+
+.goals-list-card {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem 1.5rem 1.5rem;
+  background: #ffffff;
+}
+
+.goals-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.goals-list-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.goals-add-button {
+  flex-shrink: 0;
+}
+
+.goals-empty-state {
+  text-align: left;
+  padding: 1.25rem 1.1rem;
+  border-radius: 0.75rem;
+  background: #f9fafb;
+  border: 1px dashed #e5e7eb;
+}
+
+.goals-empty-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.goals-empty-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.goals-grid {
+  display: flex;
+  gap: 1rem;
+}
+
+.goal-card {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 1rem 1.1rem 1rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-width: 260px;
+  max-width: 320px;
+  flex: 0 0 auto;
+}
+
+.goal-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.goal-card-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.goal-card-category {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.goal-status-chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid #e5e7eb;
+}
+
+.goal-status-chip--in_progress {
+  background: #ecfdf3;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.goal-status-chip--at_risk {
+  background: #fef9c3;
+  border-color: #facc15;
+  color: #854d0e;
+}
+
+.goal-status-chip--completed {
+  background: #eef2ff;
+  border-color: #c7d2fe;
+  color: #3730a3;
+}
+
+.goal-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.goal-progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.goal-progress-fill--in_progress {
+  background: #22c55e;
+}
+
+.goal-progress-fill--at_risk {
+  background: #f97316;
+}
+
+.goal-progress-fill--completed {
+  background: #6366f1;
+}
+
+.goal-progress-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.goal-progress-main {
+  color: #374151;
+}
+
+.goal-progress-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: #111827;
+}
+
+.goal-progress-remaining {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.goal-deadline {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.goal-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.goal-card-footer-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.goal-card-btn {
+  font-size: 0.75rem;
+  padding-inline: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .goal-card-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .goal-card-footer-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+.goals-achievements {
+  margin-top: 1.5rem;
+}
+
+.goals-achievements-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.goals-achievements-grid {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .goals-achievements-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .goals-achievements-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.goal-achievement-card {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.9rem 1rem;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Slider horizontal para metas y logros */
+.goals-slider {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 0.25rem;
+  cursor: grab;
+  user-select: none;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.goals-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.goals-slider.goals-slider--grabbing {
+  cursor: grabbing;
+}
+
+.goals-slider > .goal-card,
+.goals-slider > .goal-achievement-card {
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.goal-achievement-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.goal-achievement-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fef9c3;
+}
+
+.goal-achievement-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.goal-achievement-category {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.goal-achievement-amount {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.goal-achievement-date {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #9ca3af;
+}
+
+/* Resumen de metas en Dashboard */
+.panel-goals-summary {
+  padding-top: 1.1rem;
+  padding-bottom: 1.2rem;
+}
+
+.goals-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.goals-summary-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.goals-summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.goals-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.goals-summary-name {
+  font-weight: 500;
+  color: #111827;
+}
+
+.goals-summary-amount {
+  font-variant-numeric: tabular-nums;
+  color: #4b5563;
+}
+
+.goals-summary-bar {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: #eef2ff;
+  overflow: hidden;
+}
+
+.goals-summary-bar-fill {
+  height: 100%;
+  background: #a855f7;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fefce8;
+  font-size: 0.7rem;
+  font-weight: 500;
+  min-width: 24px;
+}
+
+.goals-summary-bar-label {
+  padding: 0 0.4rem;
+}
+
+.goals-summary-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.goals-summary-link {
+  padding-inline: 0.75rem;
+}
+
 .add-category {
   margin-top: 1.5rem;
   padding-top: 1.25rem;
@@ -1150,6 +1670,22 @@ body {
 
 .reference-bar--lavender .reference-right {
   color: #4f46e5;
+  font-weight: 600;
+}
+
+/* Metas de ahorro: tono celeste suave */
+.reference-bar--goals {
+  background: #e0f2fe;
+  border: 1px solid #bae6fd;
+}
+
+.reference-bar--goals .reference-main,
+.reference-bar--goals .reference-amount {
+  color: #0369a1;
+}
+
+.reference-bar--goals .reference-right {
+  color: #0284c7;
   font-weight: 600;
 }
 
@@ -1930,5 +2466,88 @@ tbody tr:hover {
 
 .button-tx-submit:hover {
   background: #6d28d9;
+}
+
+/* Modal aporte a meta de ahorro */
+.modal-goal-contribution {
+  max-width: 24rem;
+}
+
+.modal-goal-contribution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-goal-contribution-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.goal-contribution-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.goal-contribution-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.goal-contribution-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.goal-contribution-category {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.goal-contribution-amounts {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+/* Modal crear/editar meta de ahorro */
+.modal-goal-form {
+  max-width: 28rem;
+}
+
+.modal-goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.modal-goal-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.modal-goal-form-body {
+  margin-top: 0.5rem;
+}
+
+.goals-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.modal-goal-actions {
+  margin-top: 1rem;
 }
 

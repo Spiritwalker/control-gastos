@@ -65,7 +65,7 @@ function daysUntil(d: Date): number {
   return Math.max(0, Math.ceil((target.getTime() - today.getTime()) / 86400000));
 }
 
-type ViewId = "dashboard" | "upcoming";
+type ViewId = "dashboard" | "upcoming" | "goals";
 
 const HOURLY_RATE_STORAGE_KEY = "control-gastos-hourly-rate";
 const DEFAULT_HOURLY_RATE = 33.5;
@@ -117,6 +117,28 @@ interface FormState {
   place: string;
   amount: string;
   comment: string;
+}
+
+type SavingsGoalStatus = "in_progress" | "at_risk" | "completed";
+
+interface SavingsGoal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  deadline: string | null;
+  category: string;
+  status: SavingsGoalStatus;
+  createdAt: string;
+}
+
+interface SavingsContribution {
+  id: string;
+  goalId: string;
+  amount: number;
+  source: "manual" | "retention";
+  createdAt: string;
+  movementId?: number | null;
 }
 
 const formatCurrency = (value: number) =>
@@ -221,6 +243,24 @@ export function App() {
   const [txDescription, setTxDescription] = useState("");
   const [txAmountError, setTxAmountError] = useState<string | null>(null);
 
+  const [savingsGoals, setSavingsGoals] = useState<SavingsGoal[]>([]);
+  const [attachToGoal, setAttachToGoal] = useState(false);
+  const [selectedGoalIdForRetention, setSelectedGoalIdForRetention] = useState<string | null>(null);
+  const [savingsContributions, setSavingsContributions] = useState<SavingsContribution[]>([]);
+  const [goalForm, setGoalForm] = useState({ name: "", targetAmount: "", deadline: "", category: "" });
+  const [goalFormError, setGoalFormError] = useState<string | null>(null);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [selectedGoalForContribution, setSelectedGoalForContribution] = useState<SavingsGoal | null>(null);
+  const [contributionAmount, setContributionAmount] = useState("");
+  const [contributionError, setContributionError] = useState<string | null>(null);
+  const [showGoalModal, setShowGoalModal] = useState(false);
+  const goalsSliderRef = useRef<HTMLDivElement | null>(null);
+  const goalsDragRef = useRef({ startX: 0, startScrollLeft: 0 });
+  const achievementsSliderRef = useRef<HTMLDivElement | null>(null);
+  const achievementsDragRef = useRef({ startX: 0, startScrollLeft: 0 });
+  const upcomingDashboardSliderRef = useRef<HTMLDivElement | null>(null);
+  const upcomingDashboardDragRef = useRef({ startX: 0, startScrollLeft: 0 });
+
   // Cargar datos iniciales desde Supabase
   useEffect(() => {
     const load = async () => {
@@ -230,6 +270,8 @@ export function App() {
           { data: placesData },
           { data: settingsData },
           { data: salaryRows },
+          { data: goalsRows },
+          { data: contributionsRows },
         ] = await Promise.all([
           supabase
             .from("movements")
@@ -243,6 +285,14 @@ export function App() {
             .select("id, year, month, hours, hourly_rate")
             .order("year", { ascending: true })
             .order("month", { ascending: true }),
+          supabase
+            .from("savings_goals")
+            .select("id, name, target_amount, current_amount, deadline, category, status, created_at")
+            .order("created_at", { ascending: true }),
+          supabase
+            .from("savings_goal_contributions")
+            .select("id, goal_id, amount, source, created_at, movement_id")
+            .order("created_at", { ascending: true }),
         ]);
 
         if (movements) {
@@ -275,6 +325,34 @@ export function App() {
             salaryRows.map((r: { id: string; year: number; month: number; hours: number; hourly_rate: number }) =>
               mapRowToSalaryEntry(r)
             )
+          );
+        }
+
+        if (goalsRows && Array.isArray(goalsRows)) {
+          setSavingsGoals(
+            goalsRows.map((g: { id: string; name: string; target_amount: number; current_amount: number; deadline: string | null; category: string; status: string; created_at: string }) => ({
+              id: String(g.id),
+              name: g.name,
+              targetAmount: Number(g.target_amount),
+              currentAmount: Number(g.current_amount),
+              deadline: g.deadline,
+              category: g.category,
+              status: (g.status as SavingsGoalStatus) ?? "in_progress",
+              createdAt: g.created_at,
+            })),
+          );
+        }
+
+        if (contributionsRows && Array.isArray(contributionsRows)) {
+          setSavingsContributions(
+            contributionsRows.map((c: { id: string; goal_id: string; amount: number; source: string; created_at: string; movement_id?: number | null }) => ({
+              id: String(c.id),
+              goalId: String(c.goal_id),
+              amount: Number(c.amount),
+              source: c.source === "retention" ? "retention" : "manual",
+              createdAt: c.created_at,
+              movementId: typeof c.movement_id === "number" ? c.movement_id : c.movement_id ?? null,
+            })),
           );
         }
       } catch {
@@ -401,6 +479,37 @@ export function App() {
     window.addEventListener("mouseup", onUp);
   };
 
+  const makeHorizontalDragHandler =
+    (ref: React.RefObject<HTMLDivElement>, dragRef: React.MutableRefObject<{ startX: number; startScrollLeft: number }>) =>
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const el = ref.current;
+      if (!el || el.scrollWidth <= el.clientWidth) return;
+      e.preventDefault();
+      el.classList.add("goals-slider--grabbing", "upcoming-cards-slider--grabbing");
+      dragRef.current = { startX: e.clientX, startScrollLeft: el.scrollLeft };
+      const state = { latestX: e.clientX, rafId: 0, targetScrollLeft: el.scrollLeft };
+      const onMove = (moveEvent: MouseEvent) => {
+        state.latestX = moveEvent.clientX;
+        state.targetScrollLeft = dragRef.current.startScrollLeft + (dragRef.current.startX - state.latestX);
+        if (state.rafId === 0) {
+          state.rafId = requestAnimationFrame(() => {
+            const current = el.scrollLeft;
+            const next = current + (state.targetScrollLeft - current) * 0.35;
+            el.scrollLeft = next;
+            state.rafId = 0;
+          });
+        }
+      };
+      const onUp = () => {
+        if (state.rafId) cancelAnimationFrame(state.rafId);
+        el.classList.remove("goals-slider--grabbing", "upcoming-cards-slider--grabbing");
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+
   const totalsByPlace = useMemo(() => {
     const totals: Record<string, number> = {};
     for (const p of places) totals[p] = 0;
@@ -416,10 +525,31 @@ export function App() {
     [entries],
   );
 
+  /** Variación del total vs mes anterior (para Mis cuentas) */
+  const totalVsLastMonth = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear;
+    const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1;
+    const currPrefix = `${currentYear}-${String(currentMonth).padStart(2, "0")}`;
+    const prevPrefix = `${prevYear}-${String(prevMonth).padStart(2, "0")}`;
+    let currSum = 0;
+    let prevSum = 0;
+    for (const e of entries) {
+      if (e.date.startsWith(currPrefix)) currSum += e.amount;
+      else if (e.date.startsWith(prevPrefix)) prevSum += e.amount;
+    }
+    if (prevSum === 0) return currSum > 0 ? { pct: 100, positive: true } : { pct: 0, positive: true };
+    const pct = ((currSum - prevSum) / Math.abs(prevSum)) * 100;
+    return { pct, positive: pct >= 0 };
+  }, [entries]);
+
   const adeudado = ahorrosMamaPapa - grandTotal;
 
   const nextSalary = useMemo(() => getNextSalaryPayDate(hourlyRate), [hourlyRate]);
-  const upcomingSalaries = useMemo(() => getUpcomingFromEntries(salaryEntries, 3), [salaryEntries]);
+  /** En el Dashboard mostramos más salarios para poder hacer scroll horizontal (Junio, Julio, etc.) */
+  const upcomingSalaries = useMemo(() => getUpcomingFromEntries(salaryEntries, 12), [salaryEntries]);
 
   /** Totalizadores por año (ingresos a la fecha vs proyectados resto del año) */
   const salaryTotalsByYear = useMemo(() => {
@@ -467,6 +597,8 @@ export function App() {
     setTxDate(todayIso());
     setTxDescription("");
     setTxAmountError(null);
+    setAttachToGoal(false);
+    setSelectedGoalIdForRetention(null);
     setShowNewTxModal(true);
   };
 
@@ -519,10 +651,75 @@ export function App() {
 
     if (error || !data) return;
 
-    setEntries((prev) => [
-      { id: data.id as number, date: data.date as string, place: data.place as string, amount: Number(data.amount), comment: (data.comment as string | null) ?? "" },
-      ...prev,
-    ]);
+    const movement = {
+      id: data.id as number,
+      date: data.date as string,
+      place: data.place as string,
+      amount: Number(data.amount),
+      comment: (data.comment as string | null) ?? "",
+    };
+
+    setEntries((prev) => [movement, ...prev]);
+
+    if (txType === "income" && attachToGoal && selectedGoalIdForRetention) {
+      const retentionAmount = Math.round(parsed * 0.05 * 100) / 100;
+      if (retentionAmount > 0) {
+        const { data: contribData, error: contribError } = await supabase
+          .from("savings_goal_contributions")
+          .insert({
+            goal_id: selectedGoalIdForRetention,
+            amount: retentionAmount,
+            source: "retention",
+            movement_id: movement.id,
+          })
+          .select("id, goal_id, amount, source, created_at, movement_id")
+          .single();
+        if (!contribError && contribData) {
+          const c = contribData as {
+            id: string;
+            goal_id: string;
+            amount: number;
+            source: string;
+            created_at: string;
+            movement_id?: number | null;
+          };
+          setSavingsContributions((prev) => [
+            ...prev,
+            {
+              id: String(c.id),
+              goalId: String(c.goal_id),
+              amount: Number(c.amount),
+              source: "retention",
+              createdAt: c.created_at,
+              movementId: typeof c.movement_id === "number" ? c.movement_id : c.movement_id ?? null,
+            },
+          ]);
+
+          const goal = savingsGoals.find((g) => g.id === selectedGoalIdForRetention);
+          if (goal) {
+            const newCurrent = goal.currentAmount + retentionAmount;
+            const updatedGoal: SavingsGoal = { ...goal, currentAmount: newCurrent };
+            const newStatus = recalcGoalStatus(updatedGoal);
+            await supabase
+              .from("savings_goals")
+              .update({ current_amount: newCurrent, status: newStatus })
+              .eq("id", goal.id);
+            setSavingsGoals((prev) =>
+              prev.map((g) =>
+                g.id === goal.id
+                  ? {
+                      ...g,
+                      currentAmount: newCurrent,
+                      status: newStatus,
+                    }
+                  : g,
+              ),
+            );
+          }
+        }
+      }
+    }
+
     closeNewTxModal();
   };
 
@@ -568,8 +765,280 @@ export function App() {
     setConfirmDeleteSalary(null);
   };
 
+  const handleGoalFieldChange =
+    (field: "name" | "targetAmount" | "deadline" | "category") =>
+    (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = event.target.value;
+      setGoalForm((prev) => ({ ...prev, [field]: value }));
+      setGoalFormError(null);
+    };
+
+  const resetGoalForm = () => {
+    setGoalForm({ name: "", targetAmount: "", deadline: "", category: "" });
+    setGoalFormError(null);
+    setEditingGoalId(null);
+  };
+
+  const handleSubmitGoal = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const name = goalForm.name.trim();
+    const category = goalForm.category.trim();
+    const target = Number(goalForm.targetAmount.replace(/\s/g, "").replace(",", "."));
+
+    if (!name) {
+      setGoalFormError("Ingresa un nombre para la meta.");
+      return;
+    }
+    if (!category) {
+      setGoalFormError("Ingresa una categoría para la meta.");
+      return;
+    }
+    if (!goalForm.targetAmount || Number.isNaN(target) || target <= 0) {
+      setGoalFormError("Ingresa un monto objetivo mayor a 0.");
+      return;
+    }
+
+    let deadline: string | null = null;
+    if (goalForm.deadline) {
+      const isValidDate = /^\d{4}-\d{2}-\d{2}$/.test(goalForm.deadline);
+      if (!isValidDate) {
+        setGoalFormError("La fecha límite debe tener formato YYYY-MM-DD.");
+        return;
+      }
+      deadline = goalForm.deadline;
+    }
+
+    if (editingGoalId) {
+      const { error } = await supabase
+        .from("savings_goals")
+        .update({
+          name,
+          category,
+          target_amount: target,
+          deadline,
+        })
+        .eq("id", editingGoalId);
+      if (error) {
+        setGoalFormError(error.message || "No se pudo actualizar la meta.");
+        return;
+      }
+      setSavingsGoals((prev) =>
+        prev.map((g) =>
+          g.id === editingGoalId ? { ...g, name, category, targetAmount: target, deadline } : g,
+        ),
+      );
+    } else {
+      const { data, error } = await supabase
+        .from("savings_goals")
+        .insert({
+          name,
+          category,
+          target_amount: target,
+          current_amount: 0,
+          deadline,
+          status: "in_progress",
+        })
+        .select("id, name, target_amount, current_amount, deadline, category, status, created_at")
+        .single();
+      if (error) {
+        setGoalFormError(error.message || "No se pudo crear la meta.");
+        return;
+      }
+      const row = data as {
+        id: string;
+        name: string;
+        target_amount: number;
+        current_amount: number;
+        deadline: string | null;
+        category: string;
+        status: string;
+        created_at: string;
+      };
+      const newGoal: SavingsGoal = {
+        id: String(row.id),
+        name: row.name,
+        category: row.category,
+        targetAmount: Number(row.target_amount),
+        currentAmount: Number(row.current_amount),
+        deadline: row.deadline,
+        status: (row.status as SavingsGoalStatus) ?? "in_progress",
+        createdAt: row.created_at,
+      };
+      setSavingsGoals((prev) => [newGoal, ...prev]);
+    }
+
+    resetGoalForm();
+    setShowGoalModal(false);
+  };
+
+  const startEditGoal = (goal: SavingsGoal) => {
+    setEditingGoalId(goal.id);
+    setGoalForm({
+      name: goal.name,
+      targetAmount: String(goal.targetAmount),
+      deadline: goal.deadline ?? "",
+      category: goal.category,
+    });
+    setGoalFormError(null);
+    setShowGoalModal(true);
+  };
+
+  const recalcGoalStatus = (goal: SavingsGoal): SavingsGoalStatus => {
+    if (goal.currentAmount >= goal.targetAmount && goal.targetAmount > 0) {
+      return "completed";
+    }
+    return "in_progress";
+  };
+
+  const markGoalCompleted = async (id: string) => {
+    const goal = savingsGoals.find((g) => g.id === id);
+    if (!goal) return;
+    const { error } = await supabase
+      .from("savings_goals")
+      .update({ current_amount: goal.targetAmount, status: "completed" })
+      .eq("id", id);
+    if (error) return;
+    setSavingsGoals((prev) =>
+      prev.map((g) =>
+        g.id === id
+          ? {
+              ...g,
+              currentAmount: g.targetAmount,
+              status: "completed",
+            }
+          : g,
+      ),
+    );
+  };
+
+  const handleSubmitContribution = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedGoalForContribution) return;
+
+    const raw = contributionAmount.replace(/\s/g, "").replace(",", ".");
+    const parsed = Number(raw);
+
+    if (!raw || Number.isNaN(parsed) || parsed <= 0) {
+      setContributionError("Ingresa un monto válido mayor a 0.");
+      return;
+    }
+
+    const goalId = selectedGoalForContribution.id;
+
+    const { data, error } = await supabase
+      .from("savings_goal_contributions")
+      .insert({
+        goal_id: goalId,
+        amount: parsed,
+        source: "manual",
+      })
+      .select("id, goal_id, amount, source, created_at, movement_id")
+      .single();
+    if (error) {
+      setContributionError(error.message || "No se pudo registrar el aporte.");
+      return;
+    }
+
+    const contribRow = data as {
+      id: string;
+      goal_id: string;
+      amount: number;
+      source: string;
+      created_at: string;
+      movement_id?: number | null;
+    };
+
+    setSavingsContributions((prev) => [
+      ...prev,
+      {
+        id: String(contribRow.id),
+        goalId: String(contribRow.goal_id),
+        amount: Number(contribRow.amount),
+        source: contribRow.source === "retention" ? "retention" : "manual",
+        createdAt: contribRow.created_at,
+        movementId: typeof contribRow.movement_id === "number" ? contribRow.movement_id : contribRow.movement_id ?? null,
+      },
+    ]);
+
+    const updatedGoal = savingsGoals.find((g) => g.id === goalId);
+    if (updatedGoal) {
+      const newCurrent = updatedGoal.currentAmount + parsed;
+      const withUpdated: SavingsGoal = {
+        ...updatedGoal,
+        currentAmount: newCurrent,
+      };
+      const newStatus = recalcGoalStatus(withUpdated);
+      await supabase
+        .from("savings_goals")
+        .update({ current_amount: newCurrent, status: newStatus })
+        .eq("id", goalId);
+      setSavingsGoals((prev) =>
+        prev.map((g) =>
+          g.id === goalId
+            ? {
+                ...g,
+                currentAmount: newCurrent,
+                status: newStatus,
+              }
+            : g,
+        ),
+      );
+    }
+
+    setContributionAmount("");
+    setContributionError(null);
+    setSelectedGoalForContribution(null);
+  };
+
+  const closeContributionModal = () => {
+    setSelectedGoalForContribution(null);
+    setContributionAmount("");
+    setContributionError(null);
+  };
+
+  const getGoalProgressPct = (goal: SavingsGoalDemo) => {
+    if (!goal.targetAmount || goal.targetAmount <= 0) return 0;
+    return Math.min(100, (goal.currentAmount / goal.targetAmount) * 100);
+  };
+
+  const getGoalRemainingAmount = (goal: SavingsGoalDemo) =>
+    Math.max(0, goal.targetAmount - goal.currentAmount);
+
+  const getGoalDaysLeft = (goal: SavingsGoalDemo) => {
+    if (!goal.deadline) return null;
+    const [year, month, day] = goal.deadline.split("-");
+    const d = new Date(Number(year), Number(month) - 1, Number(day));
+    return daysUntil(d);
+  };
+
+  const activeGoals = useMemo(
+    () =>
+      savingsGoals
+        .filter((g) => g.status !== "completed")
+        .sort((a, b) => {
+          const da = getGoalDaysLeft(a) ?? Number.POSITIVE_INFINITY;
+          const db = getGoalDaysLeft(b) ?? Number.POSITIVE_INFINITY;
+          return da - db;
+        }),
+    [savingsGoals],
+  );
+  const completedGoals = useMemo(
+    () => savingsGoals.filter((g) => g.status === "completed"),
+    [savingsGoals],
+  );
+
   useEffect(() => {
-    if (!confirmDelete && !confirmDeleteSalary && !showNewTxModal && !showAllTxModal && !showSalaryForm && !editingSalaryId) return;
+    if (
+      !confirmDelete &&
+      !confirmDeleteSalary &&
+      !showNewTxModal &&
+      !showAllTxModal &&
+      !showSalaryForm &&
+      !editingSalaryId &&
+      !showGoalModal &&
+      !selectedGoalForContribution
+    )
+      return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         confirmDeleteCancel();
@@ -577,11 +1046,27 @@ export function App() {
         closeNewTxModal();
         setShowAllTxModal(false);
         if (showSalaryForm || editingSalaryId) cancelEditSalary();
+        if (showGoalModal) {
+          setShowGoalModal(false);
+          resetGoalForm();
+        }
+        if (selectedGoalForContribution) {
+          closeContributionModal();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [confirmDelete, confirmDeleteSalary, showNewTxModal, showAllTxModal, showSalaryForm, editingSalaryId]);
+  }, [
+    confirmDelete,
+    confirmDeleteSalary,
+    showNewTxModal,
+    showAllTxModal,
+    showSalaryForm,
+    editingSalaryId,
+    showGoalModal,
+    selectedGoalForContribution,
+  ]);
 
   return (
     <div className="app-shell-with-sidebar">
@@ -590,7 +1075,7 @@ export function App() {
           <span className="sidebar-brand-icon" aria-hidden>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
           </span>
-          <span className="sidebar-brand-text">Control Gastos</span>
+          <span className="sidebar-brand-text">Balance+</span>
         </div>
         <nav className="sidebar-nav">
           <div className="sidebar-nav-group">
@@ -618,6 +1103,16 @@ export function App() {
               </span>
               Próximos salarios
             </a>
+            <a
+              href="#"
+              className={`sidebar-nav-item ${activeView === "goals" ? "sidebar-nav-item-active" : ""}`}
+              onClick={(e) => { e.preventDefault(); setActiveView("goals"); }}
+            >
+              <span className="sidebar-nav-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="21" y1="12" x2="19" y2="12"/><line x1="12" y1="21" x2="12" y2="19"/><line x1="3" y1="12" x2="5" y2="12"/></svg>
+              </span>
+              Metas de Ahorro
+            </a>
           </div>
         </nav>
       </aside>
@@ -630,11 +1125,15 @@ export function App() {
               className="breadcrumb-link"
               onClick={() => setActiveView("dashboard")}
             >
-              Control Gastos
+              Balance+
             </button>
             <span className="breadcrumb-sep"> &gt; </span>
             <span className="breadcrumb-current">
-              {activeView === "dashboard" ? "Dashboard" : "Próximos salarios"}
+              {activeView === "dashboard"
+                ? "Dashboard"
+                : activeView === "upcoming"
+                ? "Próximos salarios"
+                : "Metas de Ahorro"}
             </span>
           </nav>
           {activeView === "dashboard" && (
@@ -658,6 +1157,25 @@ export function App() {
               </span>
               <span className="reference-right">
                 Cobro: {formatNextSalaryDate(upcomingSalaries[0].date)} · En {daysUntil(upcomingSalaries[0].date)} días
+              </span>
+            </div>
+          )}
+          {activeView === "goals" && activeGoals.length > 0 && (
+            <div className="reference-bar reference-bar-compact reference-bar--goals">
+              <span className="reference-left">
+                <span className="reference-main">Metas activas</span>
+                <span className="reference-amount">
+                  {activeGoals.length} meta{activeGoals.length !== 1 ? "s" : ""} en curso
+                </span>
+              </span>
+              <span className="reference-right">
+                {(() => {
+                  const next = activeGoals[0];
+                  const daysLeft = getGoalDaysLeft(next);
+                  return daysLeft != null
+                    ? `Próxima meta vence en ${daysLeft} día${daysLeft !== 1 ? "s" : ""}`
+                    : "Organiza y avanza en tus objetivos";
+                })()}
               </span>
             </div>
           )}
@@ -812,6 +1330,178 @@ export function App() {
                 </div>
               );
             })()}
+          </section>
+        )}
+
+        {activeView === "goals" && (
+          <section className="panel panel-goals">
+            <div className="goals-layout">
+              <div className="goals-list-card">
+                <div className="goals-list-header">
+                  <h2 className="panel-title">Tus metas activas</h2>
+                  <div className="goals-list-header-right">
+                    <p className="panel-sub-right">
+                      {activeGoals.length === 0
+                        ? "Todavía no creaste metas"
+                        : `${activeGoals.length} meta${activeGoals.length !== 1 ? "s" : ""} en curso`}
+                    </p>
+                    <button
+                      type="button"
+                      className="button goals-add-button"
+                      onClick={() => {
+                        resetGoalForm();
+                        setShowGoalModal(true);
+                      }}
+                    >
+                      + Nueva meta
+                    </button>
+                  </div>
+                </div>
+                {activeGoals.length === 0 ? (
+                  <div className="goals-empty-state">
+                    <p className="goals-empty-title">Empieza creando tu primera meta</p>
+                    <p className="goals-empty-sub">
+                      Por ejemplo: "Fondo de emergencias", "Viaje de vacaciones" o "Nuevo equipo".
+                    </p>
+                  </div>
+                ) : (
+                  <div
+                    ref={goalsSliderRef}
+                    className="goals-grid goals-slider"
+                    onMouseDown={makeHorizontalDragHandler(goalsSliderRef, goalsDragRef)}
+                  >
+                    {activeGoals.map((goal) => {
+                      const progressPct = getGoalProgressPct(goal);
+                      const remaining = getGoalRemainingAmount(goal);
+                      const daysLeft = getGoalDaysLeft(goal);
+                      const isAtRisk = goal.status === "at_risk";
+                      const isCompleted = goal.status === "completed";
+                      return (
+                        <article key={goal.id} className="goal-card">
+                          <header className="goal-card-header">
+                            <div>
+                              <h3 className="goal-card-title">{goal.name}</h3>
+                              <p className="goal-card-category">{goal.category}</p>
+                            </div>
+                            {(goal.currentAmount > 0 || isCompleted) && (
+                              <span
+                                className={`goal-status-chip goal-status-chip--${goal.status}`}
+                              >
+                                {isCompleted
+                                  ? "Completada"
+                                  : isAtRisk
+                                  ? "En riesgo"
+                                  : "En curso"}
+                              </span>
+                            )}
+                          </header>
+
+                          <div className="goal-progress">
+                            <div className="goal-progress-bar">
+                              <div
+                                className={`goal-progress-fill goal-progress-fill--${goal.status}`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                            <div className="goal-progress-row">
+                              <span className="goal-progress-main">
+                                Llevas{" "}
+                                <strong>
+                                  {formatCurrency(goal.currentAmount)} /{" "}
+                                  {formatCurrency(goal.targetAmount)}
+                                </strong>
+                              </span>
+                              <span className="goal-progress-pct">
+                                {progressPct.toFixed(0)}%
+                              </span>
+                            </div>
+                            <p className="goal-progress-remaining">
+                              {remaining > 0
+                                ? `Te faltan ${formatCurrency(remaining)} para llegar.`
+                                : "¡Meta alcanzada! 🎉"}
+                            </p>
+                            {daysLeft != null && (
+                              <p className="goal-deadline">
+                                Te quedan{" "}
+                                <strong>
+                                  {daysLeft} día{daysLeft !== 1 ? "s" : ""}
+                                </strong>{" "}
+                                para tu objetivo.
+                              </p>
+                            )}
+                          </div>
+
+                          <footer className="goal-card-footer">
+                            <button
+                              type="button"
+                              className="button button-secondary goal-card-btn"
+                              onClick={() => {
+                                setSelectedGoalForContribution(goal);
+                                setContributionAmount("");
+                                setContributionError(null);
+                              }}
+                            >
+                              + Aportar
+                            </button>
+                            <div className="goal-card-footer-right">
+                              <button
+                                type="button"
+                                className="button button-secondary goal-card-btn"
+                                onClick={() => startEditGoal(goal)}
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                className="button goal-card-btn"
+                                onClick={() => markGoalCompleted(goal.id)}
+                              >
+                                Marcar como completada
+                              </button>
+                            </div>
+                          </footer>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <section className="goals-achievements">
+              <h2 className="panel-title">Logros</h2>
+              {completedGoals.length === 0 ? (
+                <p className="goals-achievements-empty">
+                  Cuando completes una meta, aparecerá aquí para que puedas celebrar tus avances.
+                </p>
+              ) : (
+                <div
+                  ref={achievementsSliderRef}
+                  className="goals-achievements-grid goals-slider"
+                  onMouseDown={makeHorizontalDragHandler(achievementsSliderRef, achievementsDragRef)}
+                >
+                  {completedGoals.map((goal) => (
+                    <article key={goal.id} className="goal-achievement-card">
+                      <div className="goal-achievement-header">
+                        <span className="goal-achievement-icon" aria-hidden>
+                          🏆
+                        </span>
+                        <div>
+                          <h3 className="goal-achievement-title">{goal.name}</h3>
+                          <p className="goal-achievement-category">{goal.category}</p>
+                        </div>
+                      </div>
+                      <p className="goal-achievement-amount">
+                        Alcanzaste {formatCurrency(goal.targetAmount)} para esta meta.
+                      </p>
+                      <p className="goal-achievement-date">
+                        Creada el {formatDisplayDate(goal.createdAt)}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           </section>
         )}
 
@@ -1082,12 +1772,257 @@ export function App() {
                 />
               </div>
 
+              {txType === "income" && savingsGoals.some((g) => g.status !== "completed") && (
+                <div className="tx-field tx-field-goal">
+                  <label className="tx-label">Ahorro automático</label>
+                  <div className="tx-goal-retention-row">
+                    <label className="tx-goal-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={attachToGoal}
+                        onChange={(e) => setAttachToGoal(e.target.checked)}
+                      />
+                      <span>Asignar 5% de este ingreso a una meta de ahorro</span>
+                    </label>
+                    {attachToGoal && (
+                      <select
+                        className="select tx-select tx-goal-select"
+                        value={selectedGoalIdForRetention ?? ""}
+                        onChange={(e) => setSelectedGoalIdForRetention(e.target.value || null)}
+                      >
+                        <option value="">Selecciona una meta</option>
+                        {savingsGoals
+                          .filter((g) => g.status !== "completed")
+                          .map((goal) => (
+                            <option key={goal.id} value={goal.id}>
+                              {goal.name}
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="modal-actions modal-transaction-actions">
                 <button type="button" className="button button-secondary" onClick={closeNewTxModal}>
                   Cancelar
                 </button>
                 <button type="submit" className="button button-tx-submit">
                   Agregar transacción
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showGoalModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            setShowGoalModal(false);
+            resetGoalForm();
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-goal-title"
+        >
+          <div
+            className="modal modal-goal-form"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-goal-header">
+              <div>
+                <h2 id="modal-goal-title" className="modal-title">
+                  {editingGoalId ? "Editar meta de ahorro" : "Nueva meta de ahorro"}
+                </h2>
+                <p className="modal-goal-subtitle">
+                  Define un objetivo, un monto a alcanzar y una fecha límite opcional.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => {
+                  setShowGoalModal(false);
+                  resetGoalForm();
+                }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmitGoal}
+              className="modal-goal-form-body"
+            >
+              <div className="goals-modal-fields">
+                <div className="field">
+                  <div className="field-label-row">
+                    <label className="field-label">Nombre de la meta</label>
+                  </div>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="Ej. Fondo de emergencias"
+                    value={goalForm.name}
+                    onChange={handleGoalFieldChange("name")}
+                  />
+                </div>
+                <div className="field">
+                  <div className="field-label-row">
+                    <label className="field-label">Monto objetivo</label>
+                    <span className="field-hint">Sin comas, solo números</span>
+                  </div>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="input"
+                    placeholder="50000"
+                    value={goalForm.targetAmount}
+                    onChange={handleGoalFieldChange("targetAmount")}
+                  />
+                </div>
+                <div className="field">
+                  <div className="field-label-row">
+                    <label className="field-label">Fecha límite (opcional)</label>
+                  </div>
+                  <input
+                    type="date"
+                    className="input"
+                    value={goalForm.deadline}
+                    onChange={handleGoalFieldChange("deadline")}
+                  />
+                </div>
+                <div className="field">
+                  <div className="field-label-row">
+                    <label className="field-label">Categoría de ahorro</label>
+                  </div>
+                  <select
+                    className="select"
+                    value={goalForm.category}
+                    onChange={handleGoalFieldChange("category")}
+                  >
+                    <option value="">Selecciona o escribe</option>
+                    <option value="Viajes">Viajes</option>
+                    <option value="Tecnología">Tecnología</option>
+                    <option value="Salud">Salud</option>
+                    <option value="Hogar">Hogar</option>
+                    <option value="Emergencias">Emergencias</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+              {goalFormError && (
+                <div className="error-text goals-error-text">{goalFormError}</div>
+              )}
+              <div className="modal-actions modal-goal-actions">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => {
+                    setShowGoalModal(false);
+                    resetGoalForm();
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="button">
+                  {editingGoalId ? "Guardar cambios" : "Crear meta"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {selectedGoalForContribution && (
+        <div
+          className="modal-overlay"
+          onClick={closeContributionModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-goal-contribution-title"
+        >
+          <div
+            className="modal modal-goal-contribution"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-goal-contribution-header">
+              <div>
+                <h2
+                  id="modal-goal-contribution-title"
+                  className="modal-title"
+                >
+                  Aportar a la meta
+                </h2>
+                <p className="modal-goal-contribution-sub">
+                  Registra manualmente un aporte a esta meta de ahorro.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={closeContributionModal}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitContribution}>
+              <div className="goal-contribution-summary">
+                <div className="goal-contribution-main">
+                  <span className="goal-contribution-name">
+                    {selectedGoalForContribution.name}
+                  </span>
+                  <span className="goal-contribution-category">
+                    {selectedGoalForContribution.category}
+                  </span>
+                </div>
+                <div className="goal-contribution-amounts">
+                  <span className="goal-contribution-amount">
+                    {formatCurrency(selectedGoalForContribution.currentAmount)}{" "}
+                    / {formatCurrency(selectedGoalForContribution.targetAmount)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="tx-field">
+                <label className="tx-label">Monto del aporte</label>
+                <div className="tx-amount-wrap">
+                  <span className="tx-amount-prefix">$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className={`input tx-amount-input ${
+                      contributionError ? "input-error" : ""
+                    }`}
+                    placeholder="0.00"
+                    value={contributionAmount}
+                    onChange={(e) => {
+                      setContributionAmount(e.target.value);
+                      setContributionError(null);
+                    }}
+                  />
+                </div>
+                {contributionError && (
+                  <div className="error-text">{contributionError}</div>
+                )}
+              </div>
+
+              <div className="modal-actions modal-transaction-actions">
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={closeContributionModal}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="button">
+                  Guardar aporte
                 </button>
               </div>
             </form>
@@ -1192,7 +2127,20 @@ export function App() {
           <section className="panel panel-accounts">
             <div className="panel-accounts-content">
               <h2 className="panel-title">Mis cuentas</h2>
-              <div className="panel-total">{formatCurrency(grandTotal)}</div>
+              <div className="panel-total-row">
+                <div className="panel-total">{formatCurrency(grandTotal)}</div>
+                <div className={`panel-total-variation ${totalVsLastMonth.positive ? "panel-total-variation--up" : "panel-total-variation--down"}`}>
+                  <span className="panel-total-variation-pill">
+                    <span className="panel-total-variation-arrow" aria-hidden>
+                      {totalVsLastMonth.positive ? "↑" : "↓"}
+                    </span>
+                    <span className="panel-total-variation-pct">
+                      {totalVsLastMonth.pct.toFixed(1)}%
+                    </span>
+                  </span>
+                  <span className="panel-total-variation-label">vs último mes</span>
+                </div>
+              </div>
               <p className="panel-sub">Saldo total en todas las fuentes</p>
               <ul className="accounts-list">
                 {places.map((place) => {
@@ -1267,72 +2215,125 @@ export function App() {
           </section>
         </div>
 
-        <section className="panel panel-upcoming">
-          <div className="upcoming-events-header">
-            <span className="upcoming-events-icon" aria-hidden>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </span>
-            <h2 className="panel-title upcoming-events-title">Próximos salarios</h2>
-          </div>
-          <div className="upcoming-cards">
-            {upcomingSalaries.length === 0 ? (
-              <div className="upcoming-card upcoming-card-empty">
-                <p className="upcoming-card-empty-text">No hay próximos salarios cargados.</p>
-                <a href="#" className="upcoming-card-link" onClick={(e) => { e.preventDefault(); setActiveView("upcoming"); }}>
-                  Agregar en Próximos salarios →
-                </a>
-              </div>
-            ) : (
-            upcomingSalaries.map((item, index) => {
-              const days = daysUntil(item.date);
-              const isFirst = index === 0;
-              return (
-                <div key={item.id} className="upcoming-card">
-                  <div className="upcoming-card-top">
-                    <span className="upcoming-card-icon" aria-hidden>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                    </span>
-                    <span className={`upcoming-card-status ${isFirst ? "upcoming-card-status--next" : "upcoming-card-status--pending"}`}>
-                      {isFirst ? "Próximo" : "Siguiente"}
-                    </span>
-                  </div>
-                  <h3 className="upcoming-card-title">
-                    Salario {MONTH_NAMES_ES[item.month - 1]} {item.year}
-                  </h3>
-                  <p className="upcoming-card-desc">Cobro último día hábil del mes</p>
-                  <div className="upcoming-card-progress-wrap">
-                    <span className="upcoming-card-progress-label">En {days} días</span>
-                    <div className="upcoming-card-progress-bar">
-                      <div
-                        className="upcoming-card-progress-fill"
-                        style={{ width: `${Math.min(100, Math.max(0, 100 - (days / 31) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                  <p className="upcoming-card-amount">
-                    <span className="upcoming-card-amount-label">Monto </span>
-                    {formatCurrency(item.amount)}
-                  </p>
-                  <p className="upcoming-card-date">
-                    <span className="upcoming-card-date-icon" aria-hidden>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    </span>
-                    Cobro: {formatNextSalaryDate(item.date)}
-                  </p>
-                  <a
-                    href="#"
-                    className="upcoming-card-link"
-                    onClick={(e) => { e.preventDefault(); setActiveView("upcoming"); }}
-                  >
-                    Ver detalle →
+        <div className="dashboard-secondary">
+          <section className="panel panel-upcoming">
+            <div className="upcoming-events-header">
+              <span className="upcoming-events-icon" aria-hidden>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </span>
+              <h2 className="panel-title upcoming-events-title">Próximos salarios</h2>
+            </div>
+            <div
+              ref={upcomingDashboardSliderRef}
+              className="upcoming-cards upcoming-cards-slider"
+              onMouseDown={makeHorizontalDragHandler(
+                upcomingDashboardSliderRef,
+                upcomingDashboardDragRef,
+              )}
+            >
+              {upcomingSalaries.length === 0 ? (
+                <div className="upcoming-card upcoming-card-empty">
+                  <p className="upcoming-card-empty-text">No hay próximos salarios cargados.</p>
+                  <a href="#" className="upcoming-card-link" onClick={(e) => { e.preventDefault(); setActiveView("upcoming"); }}>
+                    Agregar en Próximos salarios →
                   </a>
                 </div>
-              );
-            })
-            )
-            }
-          </div>
-        </section>
+              ) : (
+              upcomingSalaries.map((item, index) => {
+                const days = daysUntil(item.date);
+                const isFirst = index === 0;
+                return (
+                  <div key={item.id} className="upcoming-card">
+                    <div className="upcoming-card-top">
+                      <span className="upcoming-card-icon" aria-hidden>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+                      </span>
+                      <span className={`upcoming-card-status ${isFirst ? "upcoming-card-status--next" : "upcoming-card-status--pending"}`}>
+                        {isFirst ? "Próximo" : "Siguiente"}
+                      </span>
+                    </div>
+                    <h3 className="upcoming-card-title">
+                      Salario {MONTH_NAMES_ES[item.month - 1]} {item.year}
+                    </h3>
+                    <p className="upcoming-card-desc">Cobro último día hábil del mes</p>
+                    <div className="upcoming-card-progress-wrap">
+                      <span className="upcoming-card-progress-label">En {days} días</span>
+                      <div className="upcoming-card-progress-bar">
+                        <div
+                          className="upcoming-card-progress-fill"
+                          style={{ width: `${Math.min(100, Math.max(0, 100 - (days / 31) * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                    <p className="upcoming-card-amount">
+                      <span className="upcoming-card-amount-label">Monto </span>
+                      {formatCurrency(item.amount)}
+                    </p>
+                    <p className="upcoming-card-date">
+                      <span className="upcoming-card-date-icon" aria-hidden>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                      </span>
+                      Cobro: {formatNextSalaryDate(item.date)}
+                    </p>
+                    <a
+                      href="#"
+                      className="upcoming-card-link"
+                      onClick={(e) => { e.preventDefault(); setActiveView("upcoming"); }}
+                    >
+                      Ver detalle →
+                    </a>
+                  </div>
+                );
+              })
+              )
+              }
+            </div>
+          </section>
+
+          <section className="panel panel-goals-summary">
+            <div className="goals-summary-header">
+              <h2 className="panel-title">Progreso de metas</h2>
+              <button
+                type="button"
+                className="button button-secondary goals-summary-link"
+                onClick={() => setActiveView("goals")}
+              >
+                Ver todas →
+              </button>
+            </div>
+            {savingsGoals.length === 0 ? (
+              <p className="goals-summary-empty">
+                Todavía no creaste metas de ahorro. Empieza definiendo tu primer objetivo.
+              </p>
+            ) : (
+              <ul className="goals-summary-list">
+                {activeGoals.slice(0, 3).map((goal) => {
+                  const progressPct = getGoalProgressPct(goal);
+                  return (
+                    <li key={goal.id} className="goals-summary-item">
+                      <div className="goals-summary-row">
+                        <span className="goals-summary-name">{goal.name}</span>
+                        <span className="goals-summary-amount">
+                          {formatCurrency(goal.currentAmount)} / {formatCurrency(goal.targetAmount)}
+                        </span>
+                      </div>
+                      <div className="goals-summary-bar">
+                        <div
+                          className="goals-summary-bar-fill"
+                          style={{ width: `${progressPct}%` }}
+                        >
+                          <span className="goals-summary-bar-label">
+                            {progressPct.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
         </>
         )}
       </div>
