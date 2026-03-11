@@ -586,7 +586,12 @@ export function App() {
   return (
     <div className="app-shell-with-sidebar">
       <aside className="sidebar">
-        <div className="sidebar-brand">Control Gastos</div>
+        <div className="sidebar-brand">
+          <span className="sidebar-brand-icon" aria-hidden>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+          </span>
+          <span className="sidebar-brand-text">Control Gastos</span>
+        </div>
         <nav className="sidebar-nav">
           <div className="sidebar-nav-group">
             <div className="sidebar-nav-label">PRINCIPAL</div>
@@ -603,19 +608,6 @@ export function App() {
           </div>
           <div className="sidebar-nav-group">
             <div className="sidebar-nav-label">FINANZAS</div>
-            <a
-              href="#"
-              className="sidebar-nav-item"
-              onClick={(e) => {
-                e.preventDefault();
-                setShowAllTxModal(true);
-              }}
-            >
-              <span className="sidebar-nav-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-              </span>
-              Transacciones
-            </a>
             <a
               href="#"
               className={`sidebar-nav-item ${activeView === "upcoming" ? "sidebar-nav-item-active" : ""}`}
@@ -671,7 +663,7 @@ export function App() {
             </div>
           )}
           {activeView === "upcoming" && upcomingSalaries.length > 0 && (
-            <div className="reference-bar reference-bar-compact reference-bar--neutral">
+            <div className="reference-bar reference-bar-compact reference-bar--lavender">
               <span className="reference-left">
                 <span className="reference-main">Próximo cobro</span>
                 <span className="reference-amount">
