@@ -266,6 +266,8 @@ export function App() {
   const [selectedGoalForContribution, setSelectedGoalForContribution] = useState<SavingsGoal | null>(null);
   const [contributionAmount, setContributionAmount] = useState("");
   const [contributionError, setContributionError] = useState<string | null>(null);
+  const [editingContribution, setEditingContribution] = useState<{ id: string; amount: number } | null>(null);
+  const [confirmResetGoal, setConfirmResetGoal] = useState<SavingsGoal | null>(null);
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [chartHoveredMonthIndex, setChartHoveredMonthIndex] = useState<number | null>(null);
   const [flowChartHovered, setFlowChartHovered] = useState<{ monthIndex: number; bar: "income" | "expense" } | null>(null);
@@ -1081,75 +1083,167 @@ export function App() {
 
     const goalId = selectedGoalForContribution.id;
 
-    const { data, error } = await supabase
-      .from("savings_goal_contributions")
-      .insert({
-        goal_id: goalId,
-        amount: parsed,
-        source: "manual",
-      })
-      .select("id, goal_id, amount, source, created_at, movement_id")
-      .single();
-    if (error) {
-      setContributionError(error.message || "No se pudo registrar el aporte.");
-      return;
-    }
-
-    const contribRow = data as {
-      id: string;
-      goal_id: string;
-      amount: number;
-      source: string;
-      created_at: string;
-      movement_id?: number | null;
-    };
-
-    setSavingsContributions((prev) => [
-      ...prev,
-      {
-        id: String(contribRow.id),
-        goalId: String(contribRow.goal_id),
-        amount: Number(contribRow.amount),
-        source: contribRow.source === "retention" ? "retention" : "manual",
-        createdAt: contribRow.created_at,
-        movementId: typeof contribRow.movement_id === "number" ? contribRow.movement_id : contribRow.movement_id ?? null,
-      },
-    ]);
-
-    const updatedGoal = savingsGoals.find((g) => g.id === goalId);
-    if (updatedGoal) {
-      const newCurrent = updatedGoal.currentAmount + parsed;
-      const withUpdated: SavingsGoal = {
-        ...updatedGoal,
-        currentAmount: newCurrent,
+    if (editingContribution) {
+      // Editar un aporte manual existente
+      const { id: contribId, amount: originalAmount } = editingContribution;
+      const { data, error } = await supabase
+        .from("savings_goal_contributions")
+        .update({ amount: parsed })
+        .eq("id", contribId)
+        .select("id, goal_id, amount, source, created_at, movement_id")
+        .single();
+      if (error) {
+        setContributionError(error.message || "No se pudo actualizar el aporte.");
+        return;
+      }
+      const contribRow = data as {
+        id: string;
+        goal_id: string;
+        amount: number;
+        source: string;
+        created_at: string;
+        movement_id?: number | null;
       };
-      const newStatus = recalcGoalStatus(withUpdated);
-      await supabase
-        .from("savings_goals")
-        .update({ current_amount: newCurrent, status: newStatus })
-        .eq("id", goalId);
-      setSavingsGoals((prev) =>
-        prev.map((g) =>
-          g.id === goalId
+
+      const delta = parsed - originalAmount;
+
+      setSavingsContributions((prev) =>
+        prev.map((c) =>
+          c.id === contribId
             ? {
-                ...g,
-                currentAmount: newCurrent,
-                status: newStatus,
+                id: String(contribRow.id),
+                goalId: String(contribRow.goal_id),
+                amount: Number(contribRow.amount),
+                source: contribRow.source === "retention" ? "retention" : "manual",
+                createdAt: contribRow.created_at,
+                movementId: typeof contribRow.movement_id === "number" ? contribRow.movement_id : contribRow.movement_id ?? null,
               }
-            : g,
+            : c,
         ),
       );
+
+      const updatedGoal = savingsGoals.find((g) => g.id === goalId);
+      if (updatedGoal && delta !== 0) {
+        const newCurrent = updatedGoal.currentAmount + delta;
+        const withUpdated: SavingsGoal = {
+          ...updatedGoal,
+          currentAmount: newCurrent,
+        };
+        const newStatus = recalcGoalStatus(withUpdated);
+        await supabase
+          .from("savings_goals")
+          .update({ current_amount: newCurrent, status: newStatus })
+          .eq("id", goalId);
+        setSavingsGoals((prev) =>
+          prev.map((g) =>
+            g.id === goalId
+              ? {
+                  ...g,
+                  currentAmount: newCurrent,
+                  status: newStatus,
+                }
+              : g,
+          ),
+        );
+      }
+    } else {
+      // Crear un nuevo aporte manual
+      const { data, error } = await supabase
+        .from("savings_goal_contributions")
+        .insert({
+          goal_id: goalId,
+          amount: parsed,
+          source: "manual",
+        })
+        .select("id, goal_id, amount, source, created_at, movement_id")
+        .single();
+      if (error) {
+        setContributionError(error.message || "No se pudo registrar el aporte.");
+        return;
+      }
+
+      const contribRow = data as {
+        id: string;
+        goal_id: string;
+        amount: number;
+        source: string;
+        created_at: string;
+        movement_id?: number | null;
+      };
+
+      setSavingsContributions((prev) => [
+        ...prev,
+        {
+          id: String(contribRow.id),
+          goalId: String(contribRow.goal_id),
+          amount: Number(contribRow.amount),
+          source: contribRow.source === "retention" ? "retention" : "manual",
+          createdAt: contribRow.created_at,
+          movementId: typeof contribRow.movement_id === "number" ? contribRow.movement_id : contribRow.movement_id ?? null,
+        },
+      ]);
+
+      const updatedGoal = savingsGoals.find((g) => g.id === goalId);
+      if (updatedGoal) {
+        const newCurrent = updatedGoal.currentAmount + parsed;
+        const withUpdated: SavingsGoal = {
+          ...updatedGoal,
+          currentAmount: newCurrent,
+        };
+        const newStatus = recalcGoalStatus(withUpdated);
+        await supabase
+          .from("savings_goals")
+          .update({ current_amount: newCurrent, status: newStatus })
+          .eq("id", goalId);
+        setSavingsGoals((prev) =>
+          prev.map((g) =>
+            g.id === goalId
+              ? {
+                  ...g,
+                  currentAmount: newCurrent,
+                  status: newStatus,
+                }
+              : g,
+          ),
+        );
+      }
     }
 
     setContributionAmount("");
     setContributionError(null);
+    setEditingContribution(null);
     setSelectedGoalForContribution(null);
+  };
+
+  const handleResetGoalProgress = async () => {
+    if (!confirmResetGoal) return;
+    const goalId = confirmResetGoal.id;
+    const { error } = await supabase
+      .from("savings_goals")
+      .update({ current_amount: 0, status: "in_progress" })
+      .eq("id", goalId);
+    if (error) {
+      return;
+    }
+    setSavingsGoals((prev) =>
+      prev.map((g) =>
+        g.id === goalId
+          ? {
+              ...g,
+              currentAmount: 0,
+              status: "in_progress",
+            }
+          : g,
+      ),
+    );
+    setConfirmResetGoal(null);
   };
 
   const closeContributionModal = () => {
     setSelectedGoalForContribution(null);
     setContributionAmount("");
     setContributionError(null);
+    setEditingContribution(null);
   };
 
   const getGoalProgressPct = (goal: SavingsGoalDemo) => {
@@ -1231,7 +1325,18 @@ export function App() {
   return (
     <div className="app-shell-with-sidebar">
       <aside className="sidebar">
-        <div className="sidebar-brand">
+        <div
+          className="sidebar-brand"
+          role="button"
+          tabIndex={0}
+          onClick={() => setActiveView("dashboard")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              setActiveView("dashboard");
+            }
+          }}
+        >
           <span className="sidebar-brand-icon" aria-hidden>
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
           </span>
@@ -1622,6 +1727,7 @@ export function App() {
                                 setSelectedGoalForContribution(goal);
                                 setContributionAmount("");
                                 setContributionError(null);
+                                setEditingContribution(null);
                               }}
                               aria-label="Aportar"
                             >
@@ -1635,6 +1741,15 @@ export function App() {
                               aria-label="Editar"
                             >
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                            </button>
+                            <button
+                              type="button"
+                              className="button button-secondary goal-card-btn goal-card-btn-icon"
+                              data-tooltip="Resetear progreso"
+                              onClick={() => setConfirmResetGoal(goal)}
+                              aria-label="Resetear progreso"
+                            >
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
                             </button>
                             <button
                               type="button"
@@ -1759,6 +1874,37 @@ export function App() {
               </button>
               <button type="button" className="button" onClick={confirmDeleteSalaryOk}>
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmResetGoal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setConfirmResetGoal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-reset-goal-title"
+        >
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2 id="modal-reset-goal-title" className="modal-title">
+              Resetear progreso de la meta
+            </h2>
+            <p className="modal-body">
+              ¿Seguro que querés resetear el progreso de esta meta a 0?
+            </p>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => setConfirmResetGoal(null)}
+              >
+                Cancelar
+              </button>
+              <button type="button" className="button" onClick={handleResetGoalProgress}>
+                Resetear
               </button>
             </div>
           </div>
@@ -2142,10 +2288,12 @@ export function App() {
                   id="modal-goal-contribution-title"
                   className="modal-title"
                 >
-                  Aportar a la meta
+                  {editingContribution ? "Editar aporte" : "Aportar a la meta"}
                 </h2>
                 <p className="modal-goal-contribution-sub">
-                  Registra manualmente un aporte a esta meta de ahorro.
+                  {editingContribution
+                    ? "Actualiza el monto de un aporte manual ya registrado."
+                    : "Registra manualmente un aporte a esta meta de ahorro."}
                 </p>
               </div>
               <button
@@ -2208,7 +2356,7 @@ export function App() {
                   Cancelar
                 </button>
                 <button type="submit" className="button">
-                  Guardar aporte
+                  {editingContribution ? "Guardar cambios" : "Guardar aporte"}
                 </button>
               </div>
             </form>
